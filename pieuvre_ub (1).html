@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIEUVRE — Analyse Intermarché UB</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #07090c;
+  --bg2: #0c0f15;
+  --s: #111520;
+  --s2: #171e2e;
+  --b: #1e2738;
+  --b2: #252f42;
+  --acc: #00e5ff;
+  --acc2: rgba(0,229,255,0.08);
+  --g: #00e676;
+  --gd: rgba(0,230,118,0.1);
+  --r: #ff1744;
+  --rd: rgba(255,23,68,0.1);
+  --y: #ffea00;
+  --yd: rgba(255,234,0,0.08);
+  --o: #ff6d00;
+  --t: #dde6f5;
+  --tm: #7b8ca8;
+  --td: #3d4f6a;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--t); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+
+/* HEADER */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--b);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-oct {
+  width: 38px; height: 38px;
+  background: var(--acc2);
+  border: 1px solid var(--acc);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 16px rgba(0,229,255,0.15);
+}
+.logo h1 { font-size: 15px; font-weight: 800; letter-spacing: 0.12em; color: var(--t); }
+.logo p { font-size: 10px; color: var(--tm); font-family: var(--mono); }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.api-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s); border: 1px solid var(--b2);
+  border-radius: 8px; padding: 7px 12px;
+}
+.api-wrap label { font-family: var(--mono); font-size: 9px; color: var(--tm); letter-spacing: 0.06em; white-space: nowrap; }
+.api-wrap input {
+  background: transparent; border: none; outline: none;
+  color: var(--t); font-family: var(--mono); font-size: 11px; width: 200px;
+}
+
+.regime-pill {
+  padding: 6px 14px; border-radius: 6px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; border: 1px solid;
+}
+.regime-pill.wait { background: var(--s); border-color: var(--b2); color: var(--tm); }
+.regime-pill.risk-off { background: var(--rd); border-color: var(--r); color: var(--r); }
+.regime-pill.risk-on { background: var(--gd); border-color: var(--g); color: var(--g); }
+.regime-pill.chaos { background: var(--yd); border-color: var(--y); color: var(--y); }
+
+/* MAIN LAYOUT */
+.main { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 65px); }
+
+/* LEFT */
+.left { display: flex; flex-direction: column; overflow: hidden; }
+
+/* MODE TABS */
+.mode-bar {
+  display: flex; gap: 0;
+  background: var(--s); border-bottom: 1px solid var(--b);
+  padding: 8px 20px 0;
+}
+.mode-tab {
+  padding: 8px 18px 10px;
+  border: none; background: transparent;
+  color: var(--tm); font-family: var(--mono); font-size: 11px;
+  cursor: pointer; letter-spacing: 0.06em;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.mode-tab.active { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* SCREENS */
+.screens { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.screen-box {
+  background: var(--s); border: 1px solid var(--b);
+  border-radius: 10px; overflow: hidden;
+}
+.screen-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--b);
+  background: var(--s2);
+}
+.screen-header h3 { font-family: var(--mono); font-size: 10px; color: var(--tm); letter-spacing: 0.08em; }
+.mkt-chips { display: flex; gap: 5px; }
+.chip {
+  padding: 2px 8px; border-radius: 3px; font-family: var(--mono); font-size: 10px;
+  background: var(--acc2); border: 1px solid rgba(0,229,255,0.2); color: var(--acc);
+}
+
+.capture-zone {
+  height: 260px; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer; transition: background 0.2s;
+}
+.capture-zone:hover { background: var(--s2); }
+.capture-zone.active { cursor: default; }
+.capture-zone video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+.placeholder-icon { font-size: 28px; opacity: 0.15; }
+.placeholder-text { font-family: var(--mono); font-size: 12px; color: var(--td); }
+.placeholder-sub { font-size: 10px; color: var(--td); opacity: 0.6; font-family: var(--mono); }
+
+.screen-footer {
+  padding: 10px 14px; border-top: 1px solid var(--b);
+  display: flex; align-items: center; gap: 8px;
+}
+.live-dot {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; color: var(--g);
+}
+.live-dot::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--g); box-shadow: 0 0 6px var(--g);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+.btn {
+  padding: 7px 16px; border-radius: 6px; border: none;
+  cursor: pointer; font-family: var(--mono); font-size: 11px;
+  font-weight: 700; letter-spacing: 0.05em; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-share { background: var(--acc); color: #000; }
+.btn-share:hover { box-shadow: 0 0 14px rgba(0,229,255,0.3); }
+.btn-stop { background: var(--rd); color: var(--r); border: 1px solid var(--r); font-size: 10px; padding: 5px 12px; }
+.btn-analyze {
+  background: linear-gradient(135deg, var(--acc), #0077ff);
+  color: #000; font-size: 13px; padding: 12px 28px;
+  width: 100%; justify-content: center; border-radius: 8px;
+  font-weight: 700;
+}
+.btn-analyze:hover { box-shadow: 0 0 24px rgba(0,229,255,0.25); transform: translateY(-1px); }
+.btn-analyze:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+.controls {
+  padding: 14px 20px;
+  display: flex; gap: 12px; align-items: center;
+  border-top: 1px solid var(--b);
+}
+.auto-wrap { display: flex; flex-direction: column; gap: 4px; }
+.auto-wrap label { font-family: var(--mono); font-size: 9px; color: var(--tm); }
+.auto-wrap select {
+  background: var(--s2); border: 1px solid var(--b2); color: var(--tm);
+  font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 5px; outline: none;
+}
+.timer-disp { font-family: var(--mono); font-size: 11px; color: var(--td); }
+
+/* RIGHT PANEL */
+.right {
+  border-left: 1px solid var(--b);
+  background: var(--bg2);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--b);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-header h2 { font-family: var(--mono); font-size: 11px; color: var(--tm); letter-spacing: 0.1em; }
+.last-upd { font-family: var(--mono); font-size: 10px; color: var(--td); }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+/* EMPTY STATE */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 12px; text-align: center;
+}
+.empty-oct { font-size: 44px; opacity: 0.08; }
+.empty-text { font-family: var(--mono); font-size: 11px; color: var(--td); line-height: 1.6; }
+
+/* LOADING */
+.loading-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px;
+  font-family: var(--mono); font-size: 11px; color: var(--tm);
+}
+.spinner {
+  width: 30px; height: 30px;
+  border: 2px solid var(--b2); border-top-color: var(--acc);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* RÉGIME BOX */
+.regime-box { border-radius: 8px; padding: 14px 16px; border: 1px solid; }
+.regime-box.risk-off { background: var(--rd); border-color: rgba(255,23,68,0.3); }
+.regime-box.risk-on { background: var(--gd); border-color: rgba(0,230,118,0.3); }
+.regime-box.chaos { background: var(--yd); border-color: rgba(255,234,0,0.3); }
+.regime-box.wait { background: var(--s); border-color: var(--b2); }
+.regime-label { font-family: var(--mono); font-size: 9px; color: var(--tm); letter-spacing: 0.1em; margin-bottom: 4px; }
+.regime-name { font-size: 16px; font-weight: 800; letter-spacing: 0.08em; }
+.regime-box.risk-off .regime-name { color: var(--r); }
+.regime-box.risk-on .regime-name { color: var(--g); }
+.regime-box.chaos .regime-name { color: var(--y); }
+.regime-box.wait .regime-name { color: var(--tm); }
+.regime-desc { font-size: 11px; color: var(--tm); margin-top: 8px; line-height: 1.5; }
+.tete-badge {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  background: var(--acc2); border: 1px solid rgba(0,229,255,0.25);
+  border-radius: 4px; padding: 3px 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--acc);
+}
+.retard-badge {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+  background: var(--yd); border: 1px solid rgba(255,234,0,0.25);
+  border-radius: 4px; padding: 3px 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--y);
+}
+
+/* UB SIGNAL */
+.ub-box {
+  background: var(--s); border: 1px solid var(--b2); border-radius: 8px; padding: 14px;
+}
+.ub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ub-header h3 { font-family: var(--mono); font-size: 9px; color: var(--tm); letter-spacing: 0.1em; }
+.ub-conf { font-family: var(--mono); font-size: 10px; color: var(--tm); }
+.ub-signal { font-size: 20px; font-weight: 800; letter-spacing: 0.06em; margin-bottom: 6px; }
+.ub-signal.buy { color: var(--g); }
+.ub-signal.sell { color: var(--r); }
+.ub-signal.wait { color: var(--y); }
+.ub-signal.notrade { color: var(--tm); }
+.ub-detail { font-size: 11px; color: var(--tm); line-height: 1.5; }
+
+/* CONF BAR */
+.conf-wrap { margin-top: 10px; }
+.conf-label { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--td); margin-bottom: 3px; }
+.conf-track { height: 4px; background: var(--b2); border-radius: 2px; overflow: hidden; }
+.conf-fill { height: 100%; background: linear-gradient(90deg, var(--acc), var(--g)); border-radius: 2px; transition: width 0.5s ease; }
+
+/* MARCHÉS TABLE */
+.mkt-section { }
+.mkt-title { font-family: var(--mono); font-size: 9px; color: var(--td); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.mkt-row {
+  display: grid; grid-template-columns: 44px 56px 1fr 48px;
+  align-items: center; gap: 6px;
+  padding: 7px 10px; border-radius: 6px; margin-bottom: 3px;
+  background: var(--s); border: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.mkt-row:hover { border-color: var(--b2); }
+.mkt-row.leader { border-color: var(--acc); background: var(--acc2); }
+.mkt-row.retard { border-color: var(--y); background: var(--yd); }
+.mkt-name { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--t); }
+.mkt-sig {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 3px; text-align: center;
+}
+.sig-buy { background: var(--gd); color: var(--g); }
+.sig-sell { background: var(--rd); color: var(--r); }
+.sig-wait { background: var(--yd); color: var(--y); }
+.sig-neutral { background: var(--s2); color: var(--td); }
+.mkt-score { display: flex; gap: 2px; align-items: center; }
+.score-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--b2); }
+.score-dot.up { background: var(--g); box-shadow: 0 0 4px var(--g); }
+.score-dot.down { background: var(--r); box-shadow: 0 0 4px var(--r); }
+.mkt-role { font-family: var(--mono); font-size: 9px; color: var(--td); text-align: right; }
+
+/* ANALYSE TEXT */
+.analyse-box {
+  background: var(--s); border: 1px solid var(--b);
+  border-radius: 8px; padding: 12px 14px;
+  font-size: 11px; color: var(--tm); line-height: 1.6;
+}
+.alerte-box {
+  background: var(--yd); border: 1px solid rgba(255,234,0,0.25);
+  border-radius: 6px; padding: 10px 12px;
+  font-family: var(--mono); font-size: 10px; color: var(--y); line-height: 1.5;
+}
+.trade-box {
+  background: var(--gd); border: 1px solid rgba(0,230,118,0.25);
+  border-radius: 6px; padding: 10px 12px;
+  font-family: var(--mono); font-size: 10px; color: var(--g); line-height: 1.6;
+}
+.questions-box {
+  background: var(--s2); border: 1px solid var(--b);
+  border-radius: 8px; padding: 12px;
+}
+.questions-title { font-family: var(--mono); font-size: 9px; color: var(--acc); letter-spacing: 0.08em; margin-bottom: 8px; }
+.q-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 5px; font-size: 11px; color: var(--tm); line-height: 1.5; }
+.q-num { font-family: var(--mono); font-size: 10px; color: var(--acc); min-width: 18px; font-weight: 700; }
+
+/* HIDDEN CANVAS */
+canvas { display: none; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-oct">🐙</div>
+    <div>
+      <h1>PIEUVRE UB</h1>
+      <p>Analyse Intermarché · Méthode Belkhayate · Ultra Bond Focus</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="api-wrap">
+      <label>API KEY CLAUDE</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off">
+    </div>
+    <button onclick="openCorsHelper()" style="background:rgba(255,234,0,0.08);border:1px solid rgba(255,234,0,0.3);color:#ffea00;font-family:'Space Mono',monospace;font-size:10px;padding:7px 12px;border-radius:6px;cursor:pointer;white-space:nowrap">⚡ Fix CORS</button>
+    <div class="regime-pill wait" id="regimePill">EN ATTENTE</div>
+  </div>
+</div>
+
+<!-- CORS MODAL -->
+<div id="corsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;display:none;align-items:center;justify-content:center">
+  <div style="background:#0c0f15;border:1px solid #1e2738;border-radius:12px;padding:28px;max-width:520px;width:90%">
+    <h3 style="font-family:'Space Mono',monospace;color:#00e5ff;font-size:13px;margin-bottom:16px;letter-spacing:0.08em">⚡ FIX CORS — 2 OPTIONS</h3>
+    <div style="background:#111520;border:1px solid #1e2738;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:#ffea00;margin-bottom:8px">OPTION 1 — Extension Chrome (recommandé)</div>
+      <div style="font-size:12px;color:#7b8ca8;line-height:1.6;margin-bottom:10px">Installe l'extension <strong style="color:#dde6f5">CORS Unblock</strong> ou <strong style="color:#dde6f5">Allow CORS</strong> depuis le Chrome Web Store. Active-la. Relance l'analyse.</div>
+      <button onclick="window.open('https://chrome.google.com/webstore/search/cors%20unblock')" style="background:#00e5ff;color:#000;border:none;padding:8px 16px;border-radius:6px;font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;font-weight:700">Ouvrir Chrome Web Store →</button>
+    </div>
+    <div style="background:#111520;border:1px solid #1e2738;border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:#ffea00;margin-bottom:8px">OPTION 2 — Lancer Chrome sans CORS (avancé)</div>
+      <div style="font-size:12px;color:#7b8ca8;line-height:1.6;margin-bottom:8px">Ferme Chrome complètement. Ouvre CMD (Windows) et colle cette commande :</div>
+      <div onclick="copyCmd()" style="background:#07090c;border:1px solid #252f42;border-radius:6px;padding:10px;font-family:'Space Mono',monospace;font-size:10px;color:#00e5ff;cursor:pointer;word-break:break-all" title="Cliquer pour copier">chrome.exe --disable-web-security --user-data-dir="%TEMP%\chrome-pieuvre" <span style="color:#3d4f6a">← cliquer pour copier</span></div>
+      <div style="font-size:11px;color:#3d4f6a;margin-top:6px">Puis ouvre pieuvre_ub.html dans cette fenêtre Chrome.</div>
+    </div>
+    <button onclick="document.getElementById('corsModal').style.display='none'" style="background:transparent;border:1px solid #1e2738;color:#7b8ca8;padding:8px 20px;border-radius:6px;font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;width:100%">Fermer</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="mode-bar">
+      <button class="mode-tab active" onclick="setMode('solo')" id="tabSolo">◉ SOLO</button>
+      <button class="mode-tab" onclick="setMode('octogone')" id="tabOcto">🐙 OCTOGONE — 8 marchés</button>
+    </div>
+
+    <div class="screens">
+
+      <!-- SOLO -->
+      <div id="soloPanel">
+        <div class="screen-box">
+          <div class="screen-header">
+            <h3>ÉCRAN · 1 MARCHÉ</h3>
+            <div id="soloLiveBadge" style="display:none"><span class="live-dot">LIVE</span></div>
+          </div>
+          <div class="capture-zone" id="soloZone" onclick="startCapture('solo')">
+            <video id="soloVideo" autoplay muted playsinline style="display:none"></video>
+            <div id="soloPlaceholder">
+              <div class="placeholder-icon">🖥</div>
+              <div class="placeholder-text">Cliquer pour partager l'écran</div>
+              <div class="placeholder-sub">Sélectionne ton onglet TradingView</div>
+            </div>
+          </div>
+          <div class="screen-footer">
+            <button class="btn btn-share" id="soloShareBtn" onclick="startCapture('solo')">▶ Partager</button>
+            <button class="btn btn-stop" id="soloStopBtn" onclick="stopCapture('solo')" style="display:none">■ Arrêter</button>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--td)" id="soloStatus">En attente</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OCTOGONE -->
+      <div id="octoPanel" style="display:none">
+        <div style="background:var(--acc2);border:1px solid rgba(0,229,255,0.2);border-radius:6px;padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--acc);margin-bottom:12px">
+          🐙 Partage 2 écrans TradingView · Écran A = DX + BTC + ZN + 6J · Écran B = ES + CL + GC + HG · Timeframe 1H recommandé
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <!-- Écran A -->
+          <div class="screen-box">
+            <div class="screen-header">
+              <h3>ÉCRAN A</h3>
+              <div class="mkt-chips"><span class="chip">DX</span><span class="chip">BTC</span><span class="chip">ZN</span><span class="chip">6J</span></div>
+            </div>
+            <div class="capture-zone" id="zoneA" onclick="startCapture('A')" style="height:200px">
+              <video id="videoA" autoplay muted playsinline style="display:none"></video>
+              <div id="placeholderA"><div class="placeholder-icon">🖥</div><div class="placeholder-text">Partager Écran A</div></div>
+            </div>
+            <div class="screen-footer">
+              <button class="btn btn-share" style="font-size:10px;padding:5px 12px" onclick="startCapture('A')">▶ Partager</button>
+              <button class="btn btn-stop" id="stopA" onclick="stopCapture('A')" style="display:none">■</button>
+              <span class="live-dot" id="liveA" style="display:none">LIVE</span>
+            </div>
+          </div>
+          <!-- Écran B -->
+          <div class="screen-box">
+            <div class="screen-header">
+              <h3>ÉCRAN B</h3>
+              <div class="mkt-chips"><span class="chip">ES</span><span class="chip">CL</span><span class="chip">GC</span><span class="chip">HG</span></div>
+            </div>
+            <div class="capture-zone" id="zoneB" onclick="startCapture('B')" style="height:200px">
+              <video id="videoB" autoplay muted playsinline style="display:none"></video>
+              <div id="placeholderB"><div class="placeholder-icon">🖥</div><div class="placeholder-text">Partager Écran B</div></div>
+            </div>
+            <div class="screen-footer">
+              <button class="btn btn-share" style="font-size:10px;padding:5px 12px" onclick="startCapture('B')">▶ Partager</button>
+              <button class="btn btn-stop" id="stopB" onclick="stopCapture('B')" style="display:none">■</button>
+              <span class="live-dot" id="liveB" style="display:none">LIVE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end screens -->
+
+    <div class="controls">
+      <button class="btn btn-analyze" id="analyzeBtn" onclick="runAnalysis()" disabled>⚡ Analyser la Pieuvre</button>
+      <div class="auto-wrap">
+        <label>AUTO</label>
+        <select id="autoSel" onchange="setAuto()">
+          <option value="0">Manuel</option>
+          <option value="30">30s</option>
+          <option value="60">1 min</option>
+          <option value="120">2 min</option>
+        </select>
+      </div>
+      <div class="timer-disp" id="timerDisp">—</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <div class="panel-header">
+      <h2>// ANALYSE PIEUVRE</h2>
+      <span class="last-upd" id="lastUpd">—</span>
+    </div>
+    <div class="panel-body" id="panelBody">
+      <div class="empty-state">
+        <div class="empty-oct">🐙</div>
+        <div class="empty-text">
+          Partage ton écran TradingView<br>
+          puis lance l'analyse.<br><br>
+          <span style="color:var(--acc);font-size:10px">ZN + GC + ES = 80% de l'info UB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<canvas id="canvasSolo"></canvas>
+<canvas id="canvasA"></canvas>
+<canvas id="canvasB"></canvas>
+
+<script>
+let mode = 'solo';
+let streams = { solo: null, A: null, B: null };
+let autoTimer = null;
+let countdown = 0;
+let countdownInt = null;
+
+// MODE
+function setMode(m) {
+  mode = m;
+  document.getElementById('soloPanel').style.display = m === 'solo' ? 'block' : 'none';
+  document.getElementById('octoPanel').style.display = m === 'octogone' ? 'block' : 'none';
+  document.getElementById('tabSolo').className = 'mode-tab' + (m === 'solo' ? ' active' : '');
+  document.getElementById('tabOcto').className = 'mode-tab' + (m === 'octogone' ? ' active' : '');
+  checkCanAnalyze();
+}
+
+// CAPTURE
+async function startCapture(target) {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5, cursor: 'never' }, audio: false });
+    streams[target] = stream;
+    const vId = target === 'solo' ? 'soloVideo' : 'video' + target;
+    const v = document.getElementById(vId);
+    v.srcObject = stream; v.style.display = 'block';
+    if (target === 'solo') {
+      document.getElementById('soloPlaceholder').style.display = 'none';
+      document.getElementById('soloLiveBadge').style.display = 'block';
+      document.getElementById('soloShareBtn').style.display = 'none';
+      document.getElementById('soloStopBtn').style.display = 'inline-flex';
+      document.getElementById('soloStatus').textContent = 'Capture active';
+    } else {
+      document.getElementById('placeholder' + target).style.display = 'none';
+      document.getElementById('live' + target).style.display = 'inline-flex';
+      document.getElementById('stop' + target).style.display = 'inline-flex';
+    }
+    stream.getVideoTracks()[0].onended = () => stopCapture(target);
+    checkCanAnalyze();
+  } catch (e) { if (e.name !== 'NotAllowedError') alert('Erreur: ' + e.message); }
+}
+
+function stopCapture(target) {
+  if (streams[target]) { streams[target].getTracks().forEach(t => t.stop()); streams[target] = null; }
+  const vId = target === 'solo' ? 'soloVideo' : 'video' + target;
+  const v = document.getElementById(vId);
+  v.style.display = 'none'; v.srcObject = null;
+  if (target === 'solo') {
+    document.getElementById('soloPlaceholder').style.display = 'flex';
+    document.getElementById('soloLiveBadge').style.display = 'none';
+    document.getElementById('soloShareBtn').style.display = 'inline-flex';
+    document.getElementById('soloStopBtn').style.display = 'none';
+    document.getElementById('soloStatus').textContent = 'En attente';
+  } else {
+    document.getElementById('placeholder' + target).style.display = 'flex';
+    document.getElementById('live' + target).style.display = 'none';
+    document.getElementById('stop' + target).style.display = 'none';
+  }
+  checkCanAnalyze();
+}
+
+function checkCanAnalyze() {
+  const btn = document.getElementById('analyzeBtn');
+  const api = document.getElementById('apiKey').value.trim();
+  if (mode === 'solo') btn.disabled = !streams.solo || !api;
+  else btn.disabled = (!streams.A && !streams.B) || !api;
+}
+document.getElementById('apiKey').addEventListener('input', checkCanAnalyze);
+
+// FRAME
+function captureFrame(videoId, canvasId) {
+  const v = document.getElementById(videoId);
+  if (!v || v.readyState < 2) return null;
+  const c = document.getElementById(canvasId);
+  c.width = v.videoWidth || 1280; c.height = v.videoHeight || 720;
+  c.getContext('2d').drawImage(v, 0, 0);
+  return c.toDataURL('image/jpeg', 0.72).split(',')[1];
+}
+
+// AUTO
+function setAuto() {
+  clearInterval(autoTimer); clearInterval(countdownInt);
+  const s = parseInt(document.getElementById('autoSel').value);
+  if (s > 0) {
+    countdown = s;
+    updateTimer();
+    countdownInt = setInterval(() => {
+      countdown--;
+      updateTimer();
+      if (countdown <= 0) {
+        countdown = s;
+        const canGo = mode === 'solo' ? !!streams.solo : (!!streams.A || !!streams.B);
+        if (canGo && document.getElementById('apiKey').value.trim()) runAnalysis();
+      }
+    }, 1000);
+  } else { document.getElementById('timerDisp').textContent = '—'; }
+}
+function updateTimer() { document.getElementById('timerDisp').textContent = 'Next: ' + countdown + 's'; }
+
+// ANALYSIS
+async function runAnalysis() {
+  const api = document.getElementById('apiKey').value.trim();
+  if (!api) { alert('Entre ta clé API Claude'); return; }
+  document.getElementById('analyzeBtn').disabled = true;
+  showLoading();
+  try {
+    let result;
+    if (mode === 'solo') {
+      const img = captureFrame('soloVideo', 'canvasSolo');
+      if (!img) throw new Error('Pas de frame disponible');
+      result = await analyzeSolo(api, img);
+    } else {
+      const imgA = streams.A ? captureFrame('videoA', 'canvasA') : null;
+      const imgB = streams.B ? captureFrame('videoB', 'canvasB') : null;
+      if (!imgA && !imgB) throw new Error('Aucun écran partagé');
+      result = await analyzeOctogone(api, imgA, imgB);
+    }
+    renderResult(result);
+  } catch(e) { showError(e.message); }
+  finally { checkCanAnalyze(); }
+}
+
+// PROMPTS BELKHAYATE
+async function analyzeSolo(api, img) {
+  const prompt = `Tu es un expert en analyse intermarché selon la méthode Belkhayate (livre Intermarket Mastery 2026).
+
+Analyse ce graphique TradingView et réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "type": "solo",
+  "actif": "ticker détecté",
+  "timeframe": "timeframe visible",
+  "signal": "ACHAT" | "VENTE" | "ATTENTE" | "SANS_SIGNAL",
+  "confiance": nombre 0-100,
+  "tendance": "HAUSSIÈRE" | "BAISSIÈRE" | "NEUTRE",
+  "energie": "FORTE" | "FAIBLE" | "ABSENTE",
+  "pivot_proche": "niveau clé visible ou null",
+  "analyse": "lecture en 2-3 phrases selon la méthode Belkhayate",
+  "alerte": "point important à surveiller ou null",
+  "questions_matin": ["question 1", "question 2", "question 3"]
+}`;
+  const data = await callClaude(api, prompt, [{ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:img }}]);
+  return JSON.parse(data);
+}
+
+async function analyzeOctogone(api, imgA, imgB) {
+  const content = [];
+  if (imgA) content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imgA }});
+  if (imgB) content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imgB }});
+  content.push({ type:'text', text:`Tu es un expert en analyse intermarché selon la méthode Belkhayate (Intermarket Mastery 2026).
+
+Écran A = DX (Dollar), BTC, ZN (10Y Note), 6J (Yen)
+Écran B = ES (S&P500), CL (Pétrole), GC (Gold), HG (Cuivre)
+
+HIÉRARCHIE BELKHAYATE :
+- DX = leader absolu, soleil du système
+- ZN + 6J = refuges institutionnels, très fiables
+- GC = détecteur de stress, fiable
+- ES = suiveur, dernier à comprendre
+- BTC = capteur précoce de liquidité
+- CL = perturbateur inflationniste
+- HG = Doctor Copper, baromètre économique
+
+RÉGIMES :
+- RISK_ON : ES↑ BTC↑ CL↑ HG↑ · DX↓ YEN↓ ZN↓ GC↓ → UB VENTE
+- RISK_OFF : ES↓ BTC↓ CL↓ · DX↑ YEN↑ ZN↑ GC↑ → UB ACHAT
+- CHAOS : marchés divergents → NO_TRADE
+
+CHRONOLOGIE BELKHAYATE : YEN réagit en 1er → ZN → GC → CL/HG → ES
+
+BIAIS UB : ZN est le confirmateur direct le plus fiable (corrélation +0.92)
+
+3 QUESTIONS DU MATIN BELKHAYATE :
+1. Que fait le dollar (DX) ? Fort ou faible ?
+2. Que font ZN et le Yen ? Risk ON ou Risk OFF ?
+3. Qui est en retard ? C'est lui le trade du jour.
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "type": "octogone",
+  "regime": "RISK_OFF" | "RISK_ON" | "CHAOS_DESYNCHRONISE" | "NEUTRE",
+  "leader": "ticker du marché leader",
+  "marche_en_retard": "ticker du marché en retard = cible de trade",
+  "ub_signal": "ACHAT" | "VENTE" | "ATTENTE" | "NO_TRADE",
+  "ub_detail": "explication du biais UB en 2 phrases selon corrélations Belkhayate",
+  "confiance": nombre 0-100,
+  "resume": "analyse globale de la pieuvre en 3 phrases",
+  "alerte": "observation critique ou null",
+  "trade_du_jour": "description du trade potentiel selon protocole sniper Belkhayate",
+  "questions_reponses": {
+    "dollar": "réponse à la question 1",
+    "refuges": "réponse à la question 2",
+    "retard": "réponse à la question 3"
+  },
+  "marches": {
+    "DX": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "BTC": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "ZN": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "6J": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "ES": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "CL": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "GC": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"},
+    "HG": {"signal":"ACHAT"|"VENTE"|"ATTENTE","momentum":"↑↑"|"↑"|"—"|"↓"|"↓↓","role":"leader"|"suiveur"|"neutre"}
+  }
+}`});
+
+  const data = await callClaude(api, null, content);
+  return JSON.parse(data);
+}
+
+async function callClaude(api, systemPrompt, content) {
+  const messages = [{ role:'user', content: systemPrompt ? [{ type:'text', text:systemPrompt }, ...content] : content }];
+  const body = JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, messages });
+
+  // Try direct call first, fallback to CORS proxies
+  const endpoints = [
+    { url: 'https://api.anthropic.com/v1/messages', headers: { 'Content-Type':'application/json', 'x-api-key':api, 'anthropic-version':'2023-06-01' } },
+    { url: 'https://corsproxy.io/?' + encodeURIComponent('https://api.anthropic.com/v1/messages'), headers: { 'Content-Type':'application/json', 'x-api-key':api, 'anthropic-version':'2023-06-01' } },
+    { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.anthropic.com/v1/messages'), headers: { 'Content-Type':'application/json', 'x-api-key':api, 'anthropic-version':'2023-06-01' } }
+  ];
+
+  let lastError = null;
+  for (const ep of endpoints) {
+    try {
+      const resp = await fetch(ep.url, { method:'POST', headers: ep.headers, body });
+      if (!resp.ok) {
+        let errMsg = 'Erreur API';
+        try { const e = await resp.json(); errMsg = e.error?.message || errMsg; } catch(e2) {}
+        throw new Error(errMsg);
+      }
+      const data = await resp.json();
+      const text = data.content?.[0]?.text;
+      if (!text) throw new Error('Réponse vide de Claude');
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('JSON non trouvé dans la réponse');
+      return match[0];
+    } catch(e) {
+      lastError = e;
+      if (e.message !== 'Failed to fetch' && !e.message.includes('NetworkError')) throw e;
+      // Try next proxy
+    }
+  }
+  throw lastError || new Error('Impossible de contacter l\'API');
+}
+
+// RENDER
+function showLoading() {
+  document.getElementById('panelBody').innerHTML = `
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <p>La Pieuvre analyse...</p>
+    </div>`;
+}
+function showError(msg) {
+  document.getElementById('panelBody').innerHTML = `<div class="alerte-box">⚠ Erreur : ${msg}</div>`;
+}
+
+function renderResult(r) {
+  document.getElementById('lastUpd').textContent = new Date().toLocaleTimeString('fr-BE');
+  if (r.type === 'solo') renderSolo(r);
+  else renderOctogone(r);
+}
+
+function renderSolo(r) {
+  const sc = r.signal === 'ACHAT' ? 'buy' : r.signal === 'VENTE' ? 'sell' : r.signal === 'ATTENTE' ? 'wait' : 'notrade';
+  const sl = r.signal === 'SANS_SIGNAL' ? '— SANS SIG' : r.signal;
+  updateRegime('wait', r.actif + ' · ' + (r.timeframe || ''));
+
+  document.getElementById('panelBody').innerHTML = `
+    <div class="ub-box">
+      <div class="ub-header">
+        <h3>SIGNAL · ${r.actif || '—'} ${r.timeframe || ''}</h3>
+        <span class="ub-conf">${r.confiance || 0}%</span>
+      </div>
+      <div class="ub-signal ${sc}">${sl}</div>
+      <div class="conf-wrap">
+        <div class="conf-label"><span>CONFIANCE</span><span>${r.confiance || 0}%</span></div>
+        <div class="conf-track"><div class="conf-fill" style="width:${r.confiance || 0}%"></div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="ub-box">
+        <div class="ub-header"><h3>ÉNERGIE</h3></div>
+        <div style="font-family:var(--mono);font-weight:700;font-size:13px;color:${r.energie==='FORTE'?'var(--g)':r.energie==='FAIBLE'?'var(--y)':'var(--td)'}">${r.energie||'—'}</div>
+      </div>
+      <div class="ub-box">
+        <div class="ub-header"><h3>TENDANCE</h3></div>
+        <div style="font-family:var(--mono);font-weight:700;font-size:13px;color:${r.tendance==='HAUSSIÈRE'?'var(--g)':r.tendance==='BAISSIÈRE'?'var(--r)':'var(--td)'}">${r.tendance||'—'}</div>
+      </div>
+    </div>
+    <div class="analyse-box">${r.analyse || ''}</div>
+    ${r.alerte ? `<div class="alerte-box">⚡ ${r.alerte}</div>` : ''}
+    ${r.questions_matin ? `<div class="questions-box">
+      <div class="questions-title">// 3 QUESTIONS DU MATIN BELKHAYATE</div>
+      ${r.questions_matin.map((q,i) => `<div class="q-row"><span class="q-num">${i+1}.</span><span>${q}</span></div>`).join('')}
+    </div>` : ''}`;
+}
+
+function renderOctogone(r) {
+  const regime = r.regime || 'NEUTRE';
+  const rc = regime === 'RISK_OFF' ? 'risk-off' : regime === 'RISK_ON' ? 'risk-on' : regime.includes('CHAOS') ? 'chaos' : 'wait';
+  const rl = regime === 'RISK_OFF' ? 'RISK OFF' : regime === 'RISK_ON' ? 'RISK ON' : regime.includes('CHAOS') ? 'CHAOS' : 'NEUTRE';
+  const rdesc = regime === 'RISK_OFF' ? 'Capital fuit vers la sécurité · UB favorable' : regime === 'RISK_ON' ? 'Capital cherche le rendement · UB sous pression' : 'Marchés divergents · Attendre clarification';
+  updateRegime(rc, rl);
+
+  const ubsc = r.ub_signal === 'ACHAT' ? 'buy' : r.ub_signal === 'VENTE' ? 'sell' : r.ub_signal === 'ATTENTE' ? 'wait' : 'notrade';
+  const ubsl = r.ub_signal === 'NO_TRADE' ? '— NO TRADE' : (r.ub_signal || '—');
+  const mkts = r.marches || {};
+  const order = ['DX','ZN','6J','GC','ES','BTC','CL','HG'];
+  const prio = { DX:'★★ leader', ZN:'★★★', GC:'★★★', '6J':'★★', ES:'★★', BTC:'★★', CL:'★', HG:'★' };
+
+  const mktRows = order.map(m => {
+    const d = mkts[m] || {};
+    const sig = d.signal || 'ATTENTE';
+    const sc = sig === 'ACHAT' ? 'sig-buy' : sig === 'VENTE' ? 'sig-sell' : sig === 'ATTENTE' ? 'sig-wait' : 'sig-neutral';
+    const mom = d.momentum || '—';
+    const dots = getMomDots(mom);
+    const isLeader = m === r.leader;
+    const isRetard = m === r.marche_en_retard;
+    const rowClass = isLeader ? 'mkt-row leader' : isRetard ? 'mkt-row retard' : 'mkt-row';
+    return `<div class="${rowClass}">
+      <div class="mkt-name">${m}</div>
+      <div class="mkt-sig ${sc}">${sig}</div>
+      <div class="mkt-score">${dots}</div>
+      <div class="mkt-role">${prio[m] || ''}</div>
+    </div>`;
+  }).join('');
+
+  const qr = r.questions_reponses || {};
+
+  document.getElementById('panelBody').innerHTML = `
+    <div class="regime-box ${rc}">
+      <div class="regime-label">RÉGIME DOMINANT — MÉTHODE BELKHAYATE</div>
+      <div class="regime-name">${rl}</div>
+      ${r.leader ? `<div class="tete-badge">🎯 Leader : ${r.leader}</div>` : ''}
+      ${r.marche_en_retard ? `<div class="retard-badge">⚡ En retard : ${r.marche_en_retard} → trade du jour</div>` : ''}
+      <div class="regime-desc">${rdesc}</div>
+    </div>
+
+    <div class="ub-box">
+      <div class="ub-header"><h3>BIAIS UB (ULTRA BOND 30Y)</h3><span class="ub-conf">${r.confiance || 0}%</span></div>
+      <div class="ub-signal ${ubsc}">${ubsl}</div>
+      <div class="ub-detail" style="margin-top:7px">${r.ub_detail || ''}</div>
+      <div class="conf-wrap" style="margin-top:10px">
+        <div class="conf-label"><span>CONFIANCE PIEUVRE</span><span>${r.confiance || 0}%</span></div>
+        <div class="conf-track"><div class="conf-fill" style="width:${r.confiance || 0}%"></div></div>
+      </div>
+    </div>
+
+    <div class="questions-box">
+      <div class="questions-title">// 3 QUESTIONS DU MATIN BELKHAYATE</div>
+      <div class="q-row"><span class="q-num">1.</span><span><strong style="color:var(--t)">Dollar (DX) ?</strong> ${qr.dollar || '—'}</span></div>
+      <div class="q-row"><span class="q-num">2.</span><span><strong style="color:var(--t)">ZN + Yen ?</strong> ${qr.refuges || '—'}</span></div>
+      <div class="q-row"><span class="q-num">3.</span><span><strong style="color:var(--t)">Qui est en retard ?</strong> ${qr.retard || '—'}</span></div>
+    </div>
+
+    <div>
+      <div class="mkt-title">ÉTAT DE LA PIEUVRE · 8 MARCHÉS</div>
+      <div style="display:grid;grid-template-columns:44px 58px 1fr 50px;gap:6px;padding:4px 10px;margin-bottom:3px">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--td)">MKT</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--td)">SIGNAL</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--td)">MOM</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--td);text-align:right">PRIO</span>
+      </div>
+      ${mktRows}
+    </div>
+
+    <div class="analyse-box">${r.resume || ''}</div>
+    ${r.trade_du_jour ? `<div class="trade-box">⚡ TRADE DU JOUR · ${r.trade_du_jour}</div>` : ''}
+    ${r.alerte ? `<div class="alerte-box">⚠ ${r.alerte}</div>` : ''}`;
+}
+
+function getMomDots(mom) {
+  const m = { '↑↑':[1,1,0,0,0],'↑':[1,0,0,0,0],'—':[0,0,1,0,0],'↓':[0,0,0,1,0],'↓↓':[0,0,0,1,1] };
+  const up = mom.includes('↑');
+  const p = m[mom] || [0,0,1,0,0];
+  return p.map(a => `<div class="score-dot${a ? (up?' up':' down') : ''}"></div>`).join('');
+}
+
+function updateRegime(cls, label) {
+  const p = document.getElementById('regimePill');
+  p.className = 'regime-pill ' + cls;
+  p.textContent = label;
+}
+
+function openCorsHelper() {
+  document.getElementById('corsModal').style.display = 'flex';
+}
+
+function copyCmd() {
+  navigator.clipboard.writeText('chrome.exe --disable-web-security --user-data-dir="%TEMP%\\chrome-pieuvre"')
+    .then(() => alert('Commande copiée !'))
+    .catch(() => alert('Copie manuelle : chrome.exe --disable-web-security --user-data-dir="%TEMP%\\chrome-pieuvre"'));
+}
+</script>
+</body>
+</html>
