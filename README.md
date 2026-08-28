@@ -21,6 +21,7 @@ backtest/
   run_backtest.py
   resultats/    sortie de l'étude complète
 docs/METHODOLOGIE.md                     comment c'est construit et ce que ça vaut
+docs/rapport-backtest-absorption.pdf     synthèse 2 pages des résultats
 ```
 
 ## Utilisation
