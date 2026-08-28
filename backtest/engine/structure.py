@@ -90,15 +90,17 @@ class StructureTracker:
                 if idx - lvl.last_touch_bar > 1:
                     lvl.touches += 1
                 lvl.last_touch_bar = idx
+        promoted: List[Level] = []
         for lvl in self.levels:
             if lvl.broken:
                 continue
-            if lvl.side == -1 and bar.close_t > lvl.price_t + self.cfg.touch_tolerance_ticks:
+            if lvl.side == -1 and bar.close_t > lvl.price_t + tol:
                 lvl.broken = True
-                self.levels.append(Level(lvl.price_t, +1, "broken_high", idx))
-            elif lvl.side == +1 and bar.close_t < lvl.price_t - self.cfg.touch_tolerance_ticks:
+                promoted.append(Level(lvl.price_t, +1, "broken_high", idx))
+            elif lvl.side == +1 and bar.close_t < lvl.price_t - tol:
                 lvl.broken = True
-                self.levels.append(Level(lvl.price_t, -1, "broken_low", idx))
+                promoted.append(Level(lvl.price_t, -1, "broken_low", idx))
+        self.levels.extend(promoted)
         self._prune_levels(idx)
 
     def _prune_levels(self, now: int) -> None:

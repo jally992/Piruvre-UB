@@ -6,6 +6,8 @@ using System.Linq;
 using System.Windows.Media;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
+using NinjaTrader.Gui.Chart;
+using NinjaTrader.Gui.Tools;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
@@ -69,6 +71,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly List<long> barVols = new List<long>();
         private double lastBid = double.MinValue, lastAsk = double.MaxValue;
         private bool marketDataSeen, warned;
+        private readonly HashSet<string> drawnLvns = new HashSet<string>();
 
         [NinjaScriptProperty, Range(1, 10), Display(Name = "Niveaux formant l'extrême", GroupName = "Absorption", Order = 1)]
         public int ExtremeLevels { get; set; }
@@ -248,8 +251,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (poc <= 0) return;
             double threshold = poc * LvnMaxPctOfPoc;
             int w = LvnWindowTicks;
-            RemoveDrawObjects();
 
+            // On ne redessine que les LVN : RemoveDrawObjects() effacerait aussi
+            // les marqueurs d'absorption déjà posés sur les barres passées.
+            var fresh = new HashSet<string>();
             for (int p = lo + w; p <= hi - w; p++)
             {
                 long v = VolAt(p);
@@ -258,9 +263,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                 for (int q = p - w; q <= p + w && isMin; q++)
                     if (VolAt(q) < v) isMin = false;
                 if (!isMin) continue;
-                Draw.HorizontalLine(this, "lvn" + p, false, p * TickSize,
+                string tag = "lvn" + p;
+                fresh.Add(tag);
+                Draw.HorizontalLine(this, tag, false, p * TickSize,
                                     Brushes.Gray, DashStyleHelper.Dot, 1);
             }
+            foreach (string stale in drawnLvns)
+                if (!fresh.Contains(stale)) RemoveDrawObject(stale);
+            drawnLvns.Clear();
+            foreach (string tag in fresh) drawnLvns.Add(tag);
         }
 
         private long VolAt(int p) { long v; return profileVol.TryGetValue(p, out v) ? v : 0; }

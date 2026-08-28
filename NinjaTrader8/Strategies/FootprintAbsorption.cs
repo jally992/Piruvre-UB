@@ -6,6 +6,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using NinjaTrader.Cbi;
 using NinjaTrader.Data;
+using NinjaTrader.Gui;
+using NinjaTrader.Gui.Chart;
 using NinjaTrader.Gui.Tools;
 using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.DrawingTools;
@@ -101,7 +103,6 @@ namespace NinjaTrader.NinjaScript.Strategies
             public int ExtremeT;
             public int StopT;
             public string Setup;
-            public int BarIndex;
         }
 
         #endregion
@@ -727,8 +728,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 Direction = direction,
                 ExtremeT = extremeT,
                 StopT = direction > 0 ? extremeT - StopBufferTicks : extremeT + StopBufferTicks,
-                Setup = setup,
-                BarIndex = CurrentBar
+                Setup = setup
             };
 
             bool busy = Position.MarketPosition != MarketPosition.Flat
