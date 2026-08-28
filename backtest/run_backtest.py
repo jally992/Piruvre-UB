@@ -9,10 +9,16 @@ Exemples
                                      --set trade.target_r_multiple=1.5
     python3 backtest/run_backtest.py --sweep absorption.volume_multiplier=1.2:3.0:0.2
     python3 backtest/run_backtest.py --csv trades.csv
+
+Sur DONNÉES RÉELLES exportées de NinjaTrader (voir docs/DONNEES_REELLES.md) :
+
+    python3 backtest/run_backtest.py --ticks "C:/ticks/MES_*.csv"
+    python3 backtest/run_backtest.py --ticks export.csv --set instrument.tick_size=0.25
 """
 
 import argparse
 import csv
+import glob
 import os
 import sys
 from datetime import datetime
@@ -24,6 +30,7 @@ from engine import metrics
 from engine.backtest import Backtester, BacktestResult, Trade
 from engine.bars import build_range_bars
 from engine.config import Config
+from engine.csv_ticks import TickFormatError, read_many
 from engine.synthetic import generate
 
 SETUP_LABELS = {"lvn": "Absorption LVN", "structure": "Pullback structure",
@@ -89,13 +96,20 @@ def report(cfg: Config, mode: str, seeds: Sequence[int], days: int,
         if q.reverting_events:
             det_rec.append(q.recall)
 
+    render(cfg, all_trades, agg, total_bars, len(seeds) * days, ambiguous,
+           per_seed, det_any, det_prec, det_rec, csv_path)
+
+
+def render(cfg: Config, all_trades, agg, total_bars: int, n_days: int, ambiguous: int,
+           per_seed, det_any, det_prec, det_rec, csv_path: str) -> None:
+    """Rendu commun aux backtests sur données simulées et sur données réelles."""
     st = metrics.compute(all_trades, cfg.instrument.commission_per_side, cfg.trade.contracts)
 
-    print(f"\nDonnées      : {total_bars} barres range, ~{total_bars/max(1,len(seeds)*days):.0f} barres/jour")
+    print(f"\nDonnées      : {total_bars} barres range, ~{total_bars/max(1,n_days):.0f} barres/jour")
     print(f"Signaux      : {agg.signals_raw} bruts | {agg.signals_confirmed} confirmés | "
           f"{agg.signals_rejected_risk} rejetés (stop hors bornes) | "
           f"{agg.signals_skipped_busy} ignorés (position/cooldown)")
-    print(f"Trades       : {st.n}  ({st.n/max(1,len(seeds)*days):.2f} par jour)")
+    print(f"Trades       : {st.n}  ({st.n/max(1,n_days):.2f} par jour)")
     print(f"Barres où stop ET objectif étaient touchés (ambigu) : {ambiguous}")
 
     if not all_trades:
@@ -152,6 +166,54 @@ def report(cfg: Config, mode: str, seeds: Sequence[int], days: int,
         print(f"\nJournal des trades écrit dans {csv_path}")
 
 
+def report_reel(cfg: Config, motif: str, csv_path: str = "") -> int:
+    """Backtest sur un export de ticks réels (NinjaTrader TickDataExporter)."""
+    chemins = sorted(glob.glob(motif)) if any(c in motif for c in "*?[") else [motif]
+    chemins = [c for c in chemins if os.path.isfile(c)]
+    if not chemins:
+        print(f"Aucun fichier ne correspond à {motif!r}")
+        return 1
+
+    print("=" * 96)
+    print(f"BACKTEST FOOTPRINT / ABSORPTION — DONNÉES RÉELLES — Range "
+          f"{cfg.bar.range_ticks} ticks")
+    print(f"{len(chemins)} fichier(s) | tick size {cfg.instrument.tick_size} | "
+          f"objectif {cfg.trade.target_r_multiple}R | "
+          f"slippage {cfg.instrument.slippage_ticks} tick(s) | "
+          f"commission {2*cfg.instrument.commission_per_side:.2f} $ A/R")
+    print("=" * 96)
+
+    try:
+        ticks, rapports = read_many(chemins, cfg.instrument.tick_size)
+    except TickFormatError as err:
+        print(f"\nFormat de fichier non exploitable : {err}")
+        print("Voir docs/DONNEES_REELLES.md pour le format attendu.")
+        return 1
+
+    if not ticks:
+        print("\nAucun tick lisible dans les fichiers fournis.")
+        return 1
+
+    lignes = sum(r["lignes"] for r in rapports)
+    ignorees = sum(r["ignorees"] for r in rapports)
+    indet = sum(r["indetermines"] for r in rapports)
+    jours = len({t.ts.date() for t in ticks})
+    print(f"\nTicks lus    : {len(ticks)} sur {lignes} lignes "
+          f"({ignorees} ignorées, {indet} agresseur indéterminé)")
+    print(f"Période      : {ticks[0].ts:%Y-%m-%d %H:%M} → {ticks[-1].ts:%Y-%m-%d %H:%M} "
+          f"({jours} séance(s))")
+    print(f"Volume total : {sum(t.size for t in ticks)}")
+    if indet > 0.10 * max(1, len(ticks)):
+        print("  ATTENTION : plus de 10 % des trades ont un agresseur indéterminé. "
+              "Le footprint sera imprécis — vérifiez que bid et ask sont bien exportés.")
+
+    bars = build_range_bars(ticks, cfg.bar.range_ticks, session_break)
+    res = Backtester(cfg).run(bars)
+    render(cfg, res.trades, res, res.bars, jours, res.ambiguous_bars,
+           [], [], [], [], csv_path)
+    return 0
+
+
 def write_csv(path: str, trades: Sequence[Trade]) -> None:
     cols = ["setup", "direction", "entry_ts", "exit_ts", "entry_t", "exit_t", "extreme_t", "stop_t",
             "target_t", "risk_ticks", "pnl_ticks", "pnl_usd", "r_multiple", "reason",
@@ -191,12 +253,17 @@ def main(argv=None) -> int:
     ap.add_argument("--set", action="append", default=[], metavar="SECTION.CLE=VALEUR")
     ap.add_argument("--sweep", default="", metavar="SECTION.CLE=DEB:FIN:PAS")
     ap.add_argument("--csv", default="")
+    ap.add_argument("--ticks", default="", metavar="FICHIER_OU_MOTIF",
+                    help="backtest sur un export de ticks réels (CSV NinjaTrader)")
     args = ap.parse_args(argv)
 
     cfg = Config()
     for item in args.set:
         key, _, val = item.partition("=")
         cfg.set_path(key.strip(), val.strip())
+
+    if args.ticks:
+        return report_reel(cfg, args.ticks, args.csv)
 
     seeds = list(range(args.seed, args.seed + args.seeds))
     modes = ["structured", "placebo", "null"] if args.mode == "all" else [args.mode]

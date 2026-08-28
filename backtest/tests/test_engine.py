@@ -12,6 +12,7 @@ from engine.bars import BUY, SELL, FootprintBar, RangeBarBuilder, Tick, build_ra
 from engine.config import Config
 from engine.profile import RollingProfile
 from engine.signals import LONG, SHORT, ZoneBaseline, detect_absorption, stacked_imbalances
+from engine.csv_ticks import TickFormatError, read_ticks
 from engine.structure import StructureTracker
 from engine.synthetic import generate
 
@@ -238,6 +239,71 @@ class TestPasDeLookAhead(unittest.TestCase):
                 break     # trade tronqué par la fin des données : normal
             self.assertEqual((a.entry_index, a.entry_t, a.stop_t, a.exit_index, a.reason),
                              (b.entry_index, b.entry_t, b.stop_t, b.exit_index, b.reason))
+
+
+class TestLectureCsvReel(unittest.TestCase):
+    """Chemin des données réelles : export NinjaTrader -> ticks du moteur."""
+
+    def _fichier(self, contenu):
+        import tempfile
+        chemin = os.path.join(tempfile.mkdtemp(), "ticks.csv")
+        with open(chemin, "w") as fh:
+            fh.write(contenu)
+        return chemin
+
+    EXPORT = ("timestamp;price;volume;aggressor;bid;ask\n"
+              "2025-03-14 09:31:02.417;5024.25;3;B;5024.00;5024.25\n"
+              "2025-03-14 09:31:02.980;5024.00;7;S;5024.00;5024.25\n")
+
+    def test_lecture_format_exporteur(self):
+        ticks, stats = read_ticks(self._fichier(self.EXPORT), 0.25)
+        self.assertEqual(stats["ticks"], 2)
+        self.assertEqual([t.aggressor for t in ticks], [BUY, SELL])
+        self.assertEqual([t.price_ticks for t in ticks], [20097, 20096])
+        self.assertEqual([t.size for t in ticks], [3, 7])
+
+    def test_agresseur_deduit_du_bid_ask(self):
+        contenu = ("time,price,size,bid,ask\n"
+                   "2025-03-14 09:31:02,5024.25,3,5024.00,5024.25\n"
+                   "2025-03-14 09:31:03,5024.00,4,5024.00,5024.25\n")
+        ticks, _ = read_ticks(self._fichier(contenu), 0.25)
+        self.assertEqual([t.aggressor for t in ticks], [BUY, SELL],
+                         "sans colonne agresseur, il doit être déduit du bid/ask")
+
+    def test_ticks_tries_par_horodatage(self):
+        contenu = ("timestamp;price;volume;aggressor\n"
+                   "2025-03-14 09:31:05.000;5024.25;1;B\n"
+                   "2025-03-14 09:31:01.000;5024.00;1;S\n")
+        ticks, _ = read_ticks(self._fichier(contenu), 0.25)
+        self.assertLess(ticks[0].ts, ticks[1].ts)
+
+    def test_lignes_illisibles_ignorees_sans_planter(self):
+        contenu = self.EXPORT + "ligne;cassée\n2025-03-14 09:31:04.000;abc;2;B;1;2\n"
+        ticks, stats = read_ticks(self._fichier(contenu), 0.25)
+        self.assertEqual(stats["ticks"], 2)
+        self.assertEqual(stats["ignorees"], 2)
+
+    def test_colonnes_insuffisantes_rejetees(self):
+        with self.assertRaises(TickFormatError):
+            read_ticks(self._fichier("timestamp;price;volume\n2025-03-14 09:31:02;5024;3\n"), 0.25)
+
+    def test_pipeline_complet_depuis_un_export(self):
+        """Un export réel doit traverser tout le moteur jusqu'aux trades."""
+        source, _ = generate(seed=7, days=4)
+        lignes = ["timestamp;price;volume;aggressor;bid;ask"]
+        for t in source:
+            prix = t.price_ticks * 0.25
+            bid, ask = (prix - 0.25, prix) if t.aggressor == SELL else (prix, prix + 0.25)
+            lignes.append("%s;%.2f;%d;%s;%.2f;%.2f" % (
+                t.ts.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3], prix, t.size,
+                "B" if t.aggressor == BUY else "S", bid, ask))
+        ticks, stats = read_ticks(self._fichier("\n".join(lignes) + "\n"), 0.25)
+        self.assertEqual(stats["ticks"], len(source))
+        self.assertEqual(sum(t.size for t in ticks), sum(t.size for t in source))
+
+        bars = build_range_bars(ticks, 8, lambda a, b: a.ts.date() != b.ts.date())
+        self.assertGreater(len(bars), 100)
+        Backtester(Config()).run(bars)   # doit s'exécuter sans erreur
 
 
 class TestGenerateur(unittest.TestCase):

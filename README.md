@@ -15,12 +15,14 @@ qu'elle détecte réellement.
 NinjaTrader8/
   Strategies/FootprintAbsorption.cs      stratégie complète (Tick Replay requis)
   Indicators/FootprintAbsorptionMap.cs   contrôle visuel : absorptions + LVN
+  Indicators/TickDataExporter.cs         export des ticks en CSV pour le moteur Python
 backtest/
   engine/       moteur : barres range, footprint, profil/LVN, structure, exécution
   tests/        20 tests, dont un test anti look-ahead
   run_backtest.py
   resultats/    sortie de l'étude complète
 docs/METHODOLOGIE.md                     comment c'est construit et ce que ça vaut
+docs/DONNEES_REELLES.md                  extraire vos ticks et backtester dessus
 docs/rapport-backtest-absorption.pdf     synthèse 2 pages des résultats
 ```
 
@@ -41,6 +43,9 @@ python3 backtest/run_backtest.py --sweep absorption.volume_multiplier=1.5:4.0:0.
 
 # journal détaillé des trades
 python3 backtest/run_backtest.py --csv trades.csv
+
+# sur VOS données exportées de NinjaTrader (voir docs/DONNEES_REELLES.md)
+python3 backtest/run_backtest.py --ticks "C:/ticks/MES_*.csv"
 
 # tests
 python3 -m unittest discover -s backtest/tests -v
