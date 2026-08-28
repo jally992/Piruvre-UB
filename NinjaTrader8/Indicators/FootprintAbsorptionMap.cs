@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Media;
 using NinjaTrader.Data;
@@ -13,16 +14,17 @@ using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
 
 // -----------------------------------------------------------------------------
-//  FootprintAbsorptionMap — outil de VÉRIFICATION VISUELLE
+//  FootprintAbsorptionMap — outil de VERIFICATION VISUELLE et de CALIBRAGE
 //
-//  Trace sur le graphique ce que la stratégie FootprintAbsorption « voit » :
-//    * les LVN du profil de volume glissant (lignes pointillées) ;
-//    * les barres d'absorption détectées (triangle + volume absorbé).
+//    * marque les absorptions detectees (fleche + volume absorbe)
+//    * trace les LVN du profil de volume glissant (pointilles gris)
+//    * mode Diagnostic : ecrit dans la fenetre Output, barre par barre, les
+//      mesures et le critere qui a bloque. C'est ce qui permet de regler les
+//      seuils sur VOS donnees au lieu de deviner.
 //
-//  Sert à contrôler à l'œil, sur vos propres données, que la détection colle
-//  à ce que vous lisez sur votre add-on footprint AVANT de lancer un backtest.
-//  Le filtre de structure (pullback) n'est PAS repris ici : cet indicateur
-//  montre l'absorption brute et son contexte LVN.
+//  Les marqueurs sont des textes et non des figures : les figures de
+//  NinjaTrader se dimensionnent sur la largeur des barres et deviennent
+//  illisibles sur un graphique footprint zoome.
 //
 //  TICK REPLAY OBLIGATOIRE (Data Series -> Tick Replay = True).
 // -----------------------------------------------------------------------------
@@ -63,6 +65,16 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
+        // Mesures d'un extreme de barre, conservees meme quand un critere echoue :
+        // c'est ce qui permet au diagnostic de dire POURQUOI ca n'a pas passe.
+        private class SideEval
+        {
+            public long Zone, Bid, Ask;
+            public double Ratio, Conc, Share, CPos;
+            public bool Ok;
+            public string Fail = "";
+        }
+
         private FpBar current = new FpBar();
         private readonly Queue<FpBar> hist = new Queue<FpBar>();
         private readonly Dictionary<int, long> profileVol = new Dictionary<int, long>();
@@ -71,24 +83,25 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly List<long> barVols = new List<long>();
         private double lastBid = double.MinValue, lastAsk = double.MaxValue;
         private bool marketDataSeen, warned;
+        private int signalCount;
         private readonly HashSet<string> drawnLvns = new HashSet<string>();
 
-        [NinjaScriptProperty, Range(1, 10), Display(Name = "Niveaux formant l'extrême", GroupName = "Absorption", Order = 1)]
+        [NinjaScriptProperty, Range(1, 10), Display(Name = "Niveaux formant l'extreme", GroupName = "Absorption", Order = 1)]
         public int ExtremeLevels { get; set; }
 
-        [NinjaScriptProperty, Range(1.0, 10.0), Display(Name = "Volume zone / médiane glissante", GroupName = "Absorption", Order = 2)]
+        [NinjaScriptProperty, Range(1.0, 10.0), Display(Name = "Volume zone / mediane glissante", GroupName = "Absorption", Order = 2)]
         public double VolumeMultiplier { get; set; }
 
-        [NinjaScriptProperty, Range(0.5, 5.0), Display(Name = "Concentration sur l'extrême", GroupName = "Absorption", Order = 3)]
+        [NinjaScriptProperty, Range(0.3, 5.0), Display(Name = "Concentration sur l'extreme", GroupName = "Absorption", Order = 3)]
         public double ConcentrationMin { get; set; }
 
-        [NinjaScriptProperty, Range(1.0, 5.0), Display(Name = "Volume de barre / médiane", GroupName = "Absorption", Order = 4)]
+        [NinjaScriptProperty, Range(0.5, 5.0), Display(Name = "Volume de barre / mediane", GroupName = "Absorption", Order = 4)]
         public double BarVolumeRatio { get; set; }
 
-        [NinjaScriptProperty, Range(0.0, 1.0), Display(Name = "Part du flux agressif piégé", GroupName = "Absorption", Order = 5)]
+        [NinjaScriptProperty, Range(0.0, 1.0), Display(Name = "Part du flux agressif piege", GroupName = "Absorption", Order = 5)]
         public double DeltaRatio { get; set; }
 
-        [NinjaScriptProperty, Range(0.0, 1.0), Display(Name = "Clôture du côté opposé", GroupName = "Absorption", Order = 6)]
+        [NinjaScriptProperty, Range(0.0, 1.0), Display(Name = "Cloture du cote oppose", GroupName = "Absorption", Order = 6)]
         public double ClosePositionMax { get; set; }
 
         [NinjaScriptProperty, Range(50, 2000), Display(Name = "Profondeur du profil (barres)", GroupName = "Profil", Order = 1)]
@@ -97,18 +110,27 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty, Range(0.05, 0.9), Display(Name = "LVN : volume max en % du POC", GroupName = "Profil", Order = 2)]
         public double LvnMaxPctOfPoc { get; set; }
 
-        [NinjaScriptProperty, Range(1, 20), Display(Name = "LVN : fenêtre de minimum local", GroupName = "Profil", Order = 3)]
+        [NinjaScriptProperty, Range(1, 20), Display(Name = "LVN : fenetre de minimum local", GroupName = "Profil", Order = 3)]
         public int LvnWindowTicks { get; set; }
 
         [NinjaScriptProperty, Display(Name = "Tracer les LVN", GroupName = "Affichage", Order = 1)]
         public bool ShowLvn { get; set; }
+
+        [NinjaScriptProperty, Range(6, 20), Display(Name = "Taille du texte", GroupName = "Affichage", Order = 2)]
+        public int FontSize { get; set; }
+
+        [NinjaScriptProperty, Display(Name = "Diagnostic dans la fenetre Output", GroupName = "Diagnostic", Order = 1)]
+        public bool Diagnostic { get; set; }
+
+        [NinjaScriptProperty, Range(1.0, 10.0), Display(Name = "Diagnostic : ne montrer qu'au-dela de ce ratio", GroupName = "Diagnostic", Order = 2)]
+        public double DiagnosticMinRatio { get; set; }
 
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
             {
                 Name = "FootprintAbsorptionMap";
-                Description = "Marque les absorptions et les LVN vus par la stratégie FootprintAbsorption.";
+                Description = "Marque les absorptions, trace les LVN, et explique dans Output pourquoi une barre est rejetee.";
                 Calculate = Calculate.OnBarClose;
                 IsOverlay = true;
                 DisplayInDataBox = false;
@@ -125,6 +147,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                 LvnMaxPctOfPoc = 0.30;
                 LvnWindowTicks = 3;
                 ShowLvn = true;
+                FontSize = 11;
+                Diagnostic = false;
+                DiagnosticMinRatio = 1.5;
+            }
+            else if (State == State.Terminated)
+            {
+                if (Diagnostic)
+                    Print(string.Format("[FAM] termine — {0} signal(s) sur {1} barres analysees.",
+                                        signalCount, hist.Count));
             }
         }
 
@@ -157,7 +188,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (!warned && CurrentBar > 20)
                 {
                     warned = true;
-                    Print("FootprintAbsorptionMap : activez TICK REPLAY sur la série de données.");
+                    Print("FootprintAbsorptionMap : activez TICK REPLAY sur la serie de donnees.");
                 }
                 return;
             }
@@ -170,20 +201,47 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             if (hist.Count >= Math.Min(150, ProfileLookback) && zoneLow.Count >= 15)
             {
-                int dir = Detect(bar);
+                double volRef = Median(barVols);
+                double volRatio = bar.Volume / volRef;
+                bool volOk = volRatio >= BarVolumeRatio && bar.Levels >= ExtremeLevels + 1;
+
+                SideEval lo = EvalSide(bar, true);
+                SideEval hi = EvalSide(bar, false);
+
+                int dir = 0;
+                SideEval win = null;
+                if (volOk)
+                {
+                    if (lo.Ok) { dir = +1; win = lo; }
+                    else if (hi.Ok) { dir = -1; win = hi; }
+                }
+
                 if (dir != 0)
                 {
-                    long bid, ask;
-                    if (dir > 0) bar.Zone(bar.LowT, bar.LowT + ExtremeLevels - 1, out bid, out ask);
-                    else bar.Zone(bar.HighT - ExtremeLevels + 1, bar.HighT, out bid, out ask);
-
-                    Draw.TriangleUp(this, "abs" + CurrentBar, false,
-                                    0, dir > 0 ? Low[0] - 3 * TickSize : High[0] + 3 * TickSize,
-                                    dir > 0 ? Brushes.DodgerBlue : Brushes.OrangeRed);
-                    Draw.Text(this, "absTxt" + CurrentBar, (bid + ask).ToString(),
-                              0, dir > 0 ? Low[0] - 6 * TickSize : High[0] + 6 * TickSize,
-                              dir > 0 ? Brushes.DodgerBlue : Brushes.OrangeRed);
+                    signalCount++;
+                    // Marqueur en TEXTE : taille fixe, ne deborde pas sur les
+                    // barres voisines comme le font les figures de NinjaTrader.
+                    string tag = "fam" + CurrentBar;
+                    string glyphe = dir > 0 ? "\u25B2" : "\u25BC";   // triangle haut / bas
+                    Draw.Text(this, tag, false,
+                              glyphe + " " + win.Zone.ToString(CultureInfo.InvariantCulture),
+                              0,
+                              dir > 0 ? Low[0] - 2 * TickSize : High[0] + 2 * TickSize,
+                              dir > 0 ? -8 : 8,
+                              dir > 0 ? Brushes.DodgerBlue : Brushes.OrangeRed,
+                              new SimpleFont("Arial", FontSize) { Bold = true },
+                              System.Windows.TextAlignment.Center,
+                              Brushes.Transparent, Brushes.Transparent, 0);
                 }
+
+                if (Diagnostic && (dir != 0 || lo.Ratio >= DiagnosticMinRatio || hi.Ratio >= DiagnosticMinRatio))
+                    Print(string.Format(
+                        "[FAM] {0:HH:mm:ss} vol={1} ({2:0.00}x{3}) | BAS z={4} r={5:0.00} c={6:0.00} part={7:0.00} clot={8:0.00} -> {9} | HAUT z={10} r={11:0.00} c={12:0.00} part={13:0.00} clot={14:0.00} -> {15}{16}",
+                        Time[0], bar.Volume, volRatio, volOk ? "" : " REJET VOLUME BARRE",
+                        lo.Zone, lo.Ratio, lo.Conc, lo.Share, lo.CPos, lo.Ok ? "OK" : lo.Fail,
+                        hi.Zone, hi.Ratio, hi.Conc, hi.Share, hi.CPos, hi.Ok ? "OK" : hi.Fail,
+                        dir != 0 ? "   ==> SIGNAL" : ""));
+
                 if (ShowLvn && CurrentBar % 20 == 0)
                     DrawLvns();
             }
@@ -192,11 +250,36 @@ namespace NinjaTrader.NinjaScript.Indicators
             BaselineAdd(bar);
         }
 
-        /// <summary>
-        /// Le tick qui fait dépasser le range est reçu par OnMarketData avant la
-        /// clôture de barre : on renvoie vers la barre suivante tout niveau hors
-        /// du High/Low réel, pour que le footprint colle exactement à la barre.
-        /// </summary>
+        // Evalue un extreme de barre. Toutes les mesures sont calculees AVANT
+        // les tests, pour que le diagnostic puisse les afficher meme en cas de rejet.
+        private SideEval EvalSide(FpBar bar, bool low)
+        {
+            SideEval r = new SideEval();
+            long bid, ask;
+            if (low) bar.Zone(bar.LowT, bar.LowT + ExtremeLevels - 1, out bid, out ask);
+            else bar.Zone(bar.HighT - ExtremeLevels + 1, bar.HighT, out bid, out ask);
+            r.Bid = bid; r.Ask = ask; r.Zone = bid + ask;
+            r.CPos = bar.ClosePosition;
+            if (r.Zone <= 0) { r.Fail = "zone vide"; return r; }
+
+            double expected = bar.MeanPerLevel * ExtremeLevels;
+            r.Ratio = r.Zone / Median(low ? zoneLow : zoneHigh);
+            r.Conc = expected > 0 ? r.Zone / expected : 0;
+            r.Share = (double)(low ? bid : ask) / r.Zone;
+
+            if (r.Ratio < VolumeMultiplier) { r.Fail = "ratio"; return r; }
+            if (r.Conc < ConcentrationMin) { r.Fail = "concentr"; return r; }
+            if (r.Share < DeltaRatio) { r.Fail = "part"; return r; }
+            if (low ? r.CPos < 1.0 - ClosePositionMax : r.CPos > ClosePositionMax)
+            { r.Fail = "cloture"; return r; }
+
+            r.Ok = true;
+            return r;
+        }
+
+        // Le tick qui fait depasser le range est recu par OnMarketData avant la
+        // cloture de barre : on renvoie vers la barre suivante tout niveau hors
+        // du High/Low reel, pour que le footprint colle exactement a la barre.
         private void Reconcile(FpBar bar)
         {
             int hiT = (int)Math.Round(High[0] / TickSize);
@@ -219,30 +302,6 @@ namespace NinjaTrader.NinjaScript.Indicators
             bar.CloseT = Math.Min(bar.HighT, Math.Max(bar.LowT, (int)Math.Round(Close[0] / TickSize)));
         }
 
-        private int Detect(FpBar bar)
-        {
-            if (bar.Volume < BarVolumeRatio * Median(barVols) || bar.Levels < ExtremeLevels + 1)
-                return 0;
-            double expected = bar.MeanPerLevel * ExtremeLevels;
-            if (expected <= 0) return 0;
-            double cpos = bar.ClosePosition;
-            long bid, ask;
-
-            bar.Zone(bar.LowT, bar.LowT + ExtremeLevels - 1, out bid, out ask);
-            long zone = bid + ask;
-            if (zone > 0 && zone >= VolumeMultiplier * Median(zoneLow) && zone >= ConcentrationMin * expected
-                && (double)bid / zone >= DeltaRatio && cpos >= 1.0 - ClosePositionMax)
-                return +1;
-
-            bar.Zone(bar.HighT - ExtremeLevels + 1, bar.HighT, out bid, out ask);
-            zone = bid + ask;
-            if (zone > 0 && zone >= VolumeMultiplier * Median(zoneHigh) && zone >= ConcentrationMin * expected
-                && (double)ask / zone >= DeltaRatio && cpos <= ClosePositionMax)
-                return -1;
-
-            return 0;
-        }
-
         private void DrawLvns()
         {
             if (profileVol.Count == 0) return;
@@ -253,7 +312,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             int w = LvnWindowTicks;
 
             // On ne redessine que les LVN : RemoveDrawObjects() effacerait aussi
-            // les marqueurs d'absorption déjà posés sur les barres passées.
+            // les marqueurs d'absorption deja poses sur les barres passees.
             var fresh = new HashSet<string>();
             for (int p = lo + w; p <= hi - w; p++)
             {
