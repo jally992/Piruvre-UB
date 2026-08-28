@@ -166,7 +166,7 @@ la zone extrême de la barre passe à ±2 ticks du LVN.
 
 Ce dernier point mérite d'être quantifié plutôt que promis : le compteur
 `ambiguous_bars` du rapport indique combien de fois le cas s'est produit. Sur
-529 trades : **1 fois**. Une barre Range de 8 ticks ne peut pratiquement pas
+520 trades : **1 fois**. Une barre Range de 8 ticks ne peut pratiquement pas
 contenir à la fois un stop et un objectif distants de 2 R — c'est un avantage
 méthodologique réel des barres Range sur les barres temps pour ce type de test.
 
@@ -190,12 +190,15 @@ Trois protections, dont une testée automatiquement :
 
 * que la logique est implémentable, déterministe et sans look-ahead ;
 * que le détecteur identifie bien des absorptions réelles, et non du bruit à
-  gros volume : ~50 % des trades se déclenchent sur un niveau où un ordre passif
-  a effectivement absorbé du volume, contre un taux de base de 0,5 % ;
+  gros volume : **48 %** des trades se déclenchent sur un niveau où un ordre
+  passif a effectivement absorbé du volume, contre un taux de base de 0,5 %, et
+  33 % sur une absorption effectivement suivie d'un retournement ;
 * que **sans absorption dans les données, la stratégie ne trade quasiment
-  pas** : 1,86 signal/jour en `structured` contre 0,067 en `placebo` — soit
-  28 fois moins — et l'espérance y retombe à zéro. L'edge mesuré vient bien du
-  phénomène ciblé, pas de la structure de sortie 2 R.
+  pas** : 1,80 signal/jour en `structured` contre 0,064 en `placebo` — soit
+  28 fois moins — et l'espérance y passe sous zéro (−0,33 R). L'edge mesuré
+  vient bien du phénomène ciblé, pas de la structure de sortie 2 R ;
+* que le résultat ne tient pas à un seuil ajusté au millimètre : de 1,5× à 4,0×
+  la médiane glissante, le facteur de profit reste entre 1,60 et 1,87.
 
 **Elle ne prouve pas :**
 
@@ -207,12 +210,40 @@ Trois protections, dont une testée automatiquement :
   optimaux *sur ce simulateur*. Ils constituent un point de départ raisonné, à
   re-valider sur vos données ;
 * rien sur la microstructure absente du modèle : spread variable, files
-  d'attente réelles, spoofing, annonces macro, gaps de séance.
+  d'attente réelles, spoofing, annonces macro, gaps de séance ;
+* rien sur l'objectif optimal. Le balayage donne une espérance croissante
+  jusqu'à 3,5 R, mais c'est une propriété du simulateur — la dérive qui suit une
+  absorption y persiste par construction. Sur données réelles, cette courbe est
+  la première à re-mesurer.
+
+Amplitude du résultat, tirage par tirage (6 marchés indépendants de 60 séances) :
+espérance de **+0,20 R à +0,73 R**, tous positifs. Le sens du résultat est
+stable ; son amplitude ne l'est pas. Sur 85 trades par tirage, un écart de ce
+type est attendu — c'est aussi l'ordre de grandeur d'incertitude qu'il faut
+garder en tête en lisant le chiffre global.
 
 Le chemin correct est donc : **valider la logique ici → la faire tourner dans
 NinjaTrader sur vos données tick → comparer les deux**.
 
-## 11. Passer sur données réelles
+## 11. Ce que le journal des trades apprend
+
+`python3 backtest/analyse_trades.py` ventile les 520 trades par critère
+(sortie complète dans `backtest/resultats/analyse_trades.txt`) :
+
+| Profondeur du LVN | n | Réussite | Espérance |
+|---|---|---|---|
+| pas de LVN (pullback pur) | 108 | 47,2 % | **+0,571 R** |
+| LVN modéré (0,75–0,90) | 182 | 41,8 % | +0,430 R |
+| LVN profond (0,90–0,97) | 136 | 37,5 % | +0,305 R |
+| niveau quasi vierge (≥ 0,97) | 59 | 37,3 % | **+0,176 R** |
+
+Résultat contre-intuitif et cohérent avec le balayage du seuil LVN (0,35–0,40 du
+POC fait mieux que 0,15) : **plus le nœud est vide, moins l'absorption y tient**.
+Un vide total, le prix le traverse ; c'est le vide relatif, encore disputé, qui
+retient. La force de l'absorption, elle, joue dans le sens attendu : +0,41 R
+entre 2,5× et 3,5× la médiane, +0,63 R au-delà de 8×.
+
+## 12. Passer sur données réelles
 
 1. Ouvrir un graphique MES, `Range 8`, **Tick Replay activé** (Data Series →
    Tick Replay = True).

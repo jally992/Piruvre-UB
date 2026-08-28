@@ -1,0 +1,520 @@
+<title>Absorption LVN et structure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&display=swap">
+
+<style>
+  :root{
+    --ground:#F4F6F8; --surface:#FFFFFF; --surface-2:#EDF0F4;
+    --ink:#111820; --ink-soft:#3B4652; --muted:#66727F;
+    --rule:#DCE1E7; --rule-strong:#C3CBD4;
+    --ask:#1B6E9C;        /* acheteur agressif — colonne ask du footprint */
+    --bid:#AE4832;        /* vendeur agressif — colonne bid */
+    --ask-wash:#E4EFF6; --bid-wash:#F7E7E2;
+    --pos:#1B6E9C; --neg:#AE4832;
+    --shadow:0 1px 2px rgba(17,24,32,.06), 0 8px 24px -16px rgba(17,24,32,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0C1014; --surface:#141A21; --surface-2:#1A222B;
+      --ink:#E5EAF0; --ink-soft:#B7C2CE; --muted:#8B98A6;
+      --rule:#242D37; --rule-strong:#33404D;
+      --ask:#5FAED9; --bid:#DC8168;
+      --ask-wash:#152C3B; --bid-wash:#33201A;
+      --pos:#5FAED9; --neg:#DC8168;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1014; --surface:#141A21; --surface-2:#1A222B;
+    --ink:#E5EAF0; --ink-soft:#B7C2CE; --muted:#8B98A6;
+    --rule:#242D37; --rule-strong:#33404D;
+    --ask:#5FAED9; --bid:#DC8168;
+    --ask-wash:#152C3B; --bid-wash:#33201A;
+    --pos:#5FAED9; --neg:#DC8168;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size:16.5px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px 96px}
+  .measure{max-width:64ch}
+
+  /* ---------- en-tête ---------- */
+  header{border-bottom:1px solid var(--rule); padding:64px 0 32px; margin-bottom:44px}
+  .eyebrow{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 18px
+  }
+  h1{
+    font-family:"IBM Plex Serif", Georgia, serif; font-weight:600;
+    font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.1rem); line-height:1.1;
+    letter-spacing:-.015em; margin:0 0 18px; text-wrap:balance;
+  }
+  .standfirst{font-size:1.12rem; color:var(--ink-soft); margin:0; max-width:60ch}
+  .meta{
+    display:flex; flex-wrap:wrap; gap:0 34px; margin-top:30px;
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:12.5px; color:var(--muted);
+  }
+  .meta b{display:block; color:var(--ink); font-weight:500; font-size:14px; letter-spacing:0}
+
+  /* ---------- structure ---------- */
+  section{margin:0 0 60px}
+  h2{
+    font-family:"IBM Plex Serif", Georgia, serif; font-weight:600;
+    font-size:1.55rem; line-height:1.25; letter-spacing:-.01em;
+    margin:0 0 6px; text-wrap:balance;
+  }
+  .kicker{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11.5px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--ask);
+    margin:0 0 10px; font-weight:500;
+  }
+  h3{font-size:1.02rem; font-weight:600; margin:34px 0 8px; letter-spacing:-.005em}
+  p{margin:0 0 16px}
+  a{color:var(--ask)}
+  strong{font-weight:600}
+  .lede{font-size:1.05rem; color:var(--ink-soft)}
+
+  /* ---------- comparaison à trois ---------- */
+  .three{display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:16px; margin:28px 0 22px}
+  .card{
+    background:var(--surface); border:1px solid var(--rule); border-radius:6px;
+    padding:22px 22px 20px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  }
+  .card::before{content:""; position:absolute; inset:0 auto 0 0; width:3px; background:var(--rule-strong)}
+  .card.win::before{background:var(--ask)}
+  .card.flat::before{background:var(--muted)}
+  .card.lose::before{background:var(--bid)}
+  .card h4{
+    margin:0 0 2px; font-size:1rem; font-weight:600; letter-spacing:-.005em;
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  .card .sub{font-size:13px; color:var(--muted); margin:0 0 18px; min-height:2.9em}
+  .big{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;
+    font-size:2.05rem; font-weight:600; line-height:1; letter-spacing:-.03em;
+  }
+  .big.pos{color:var(--pos)} .big.neg{color:var(--neg)} .big.nil{color:var(--muted)}
+  .big-label{font-size:12px; color:var(--muted); margin-top:6px}
+  .card dl{
+    margin:18px 0 0; padding-top:14px; border-top:1px solid var(--rule);
+    display:grid; grid-template-columns:1fr auto; gap:5px 12px;
+    font-size:13px; font-variant-numeric:tabular-nums;
+  }
+  .card dt{color:var(--muted)}
+  .card dd{margin:0; font-family:"IBM Plex Mono", ui-monospace, monospace; text-align:right}
+
+  /* ---------- tableaux ---------- */
+  .scroll{overflow-x:auto; margin:22px 0; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; font-variant-numeric:tabular-nums}
+  caption{
+    caption-side:top; text-align:left; padding:14px 18px 0; font-size:13px; color:var(--muted);
+  }
+  th,td{padding:9px 16px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--rule)}
+  th:first-child,td:first-child{text-align:left; white-space:normal}
+  thead th{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; font-weight:500;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+    border-bottom:1px solid var(--rule-strong); background:var(--surface-2);
+  }
+  tbody td{font-family:"IBM Plex Mono", ui-monospace, monospace}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.total td{background:var(--surface-2); font-weight:600}
+  .pos{color:var(--pos)} .neg{color:var(--neg)}
+
+  /* ---------- ladder footprint ---------- */
+  .ladder-wrap{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:34px; align-items:start;
+    margin:26px 0; padding:24px; background:var(--surface); border:1px solid var(--rule);
+    border-radius:6px; box-shadow:var(--shadow);
+  }
+  @media (max-width:720px){ .ladder-wrap{grid-template-columns:1fr; gap:22px} }
+  .ladder{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:13px;
+    font-variant-numeric:tabular-nums; display:grid;
+    grid-template-columns:1fr auto 1fr; gap:2px 0;
+  }
+  .ladder .hd{
+    font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    padding-bottom:8px; text-align:center;
+  }
+  .ladder .b,.ladder .a{padding:3px 10px; border-radius:3px}
+  .ladder .b{text-align:right; color:var(--bid)}
+  .ladder .a{text-align:left; color:var(--ask)}
+  .ladder .px{padding:3px 12px; color:var(--muted); text-align:center; border-left:1px solid var(--rule); border-right:1px solid var(--rule)}
+  .ladder .b.hot{background:var(--bid-wash); font-weight:600}
+  .ladder .a.hot{background:var(--ask-wash); font-weight:600}
+  .ladder .row-abs .px{color:var(--ink); font-weight:600}
+  .ladder-note{font-size:13.5px; color:var(--ink-soft)}
+  .ladder-note b{color:var(--ink)}
+  .tag{
+    display:inline-block; font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:11px; letter-spacing:.06em; padding:2px 7px; border-radius:3px;
+    background:var(--surface-2); color:var(--muted); border:1px solid var(--rule);
+  }
+
+  /* ---------- encadrés ---------- */
+  .callout{
+    border:1px solid var(--rule); border-left:3px solid var(--bid); border-radius:0 6px 6px 0;
+    background:var(--surface); padding:20px 24px; margin:26px 0;
+  }
+  .callout h3{margin:0 0 8px; font-size:.98rem}
+  .callout p:last-child{margin-bottom:0}
+  .callout.neutral{border-left-color:var(--rule-strong)}
+
+  .barcell{width:96px; padding-left:0}
+  .bar{display:block; height:6px; border-radius:2px; background:var(--ask); width:var(--w); min-width:3px}
+  .verdict{
+    font-size:14px; color:var(--ink-soft); margin:-8px 0 30px; padding-left:14px;
+    border-left:2px solid var(--rule-strong); max-width:62ch;
+  }
+  .verdict b{color:var(--ink)}
+  ul{margin:0 0 16px; padding-left:1.15em}
+  li{margin-bottom:7px}
+  li::marker{color:var(--muted)}
+  code{
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:.86em;
+    background:var(--surface-2); padding:1px 5px; border-radius:3px;
+  }
+  footer{
+    border-top:1px solid var(--rule); padding-top:22px; margin-top:20px;
+    font-size:13px; color:var(--muted);
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .card{transition:transform .18s ease}
+  }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Backtest · MES · Range 8 ticks</p>
+  <h1>L'absorption au contact d'un LVN tient-elle debout&nbsp;?</h1>
+  <p class="standfirst">
+    Deux configurations testées&nbsp;: l'absorption sur nœud de faible volume, et
+    l'absorption au retest d'un niveau structurel en pullback. Avec le témoin qui
+    manque à la plupart des backtests&nbsp;: le même marché, privé de ses absorptions.
+  </p>
+  <div class="meta">
+    <div>Instrument<b>MES · 8 ticks</b></div>
+    <div>Échantillon<b>360 séances simulées</b></div>
+    <div>Coûts<b>1 tick + 1,24 $ A/R</b></div>
+    <div>Trades<b>520</b></div>
+  </div>
+</header>
+
+<section class="measure">
+  <p class="lede">
+    Un backtest footprint ne peut pas se contenter de barres&nbsp;: toute
+    l'information est dans la répartition acheteur/vendeur, prix par prix. Le
+    moteur reconstruit donc chaque barre Range à partir du flux de ticks, et le
+    marché de test est lui-même simulé au niveau du carnet — un prix ne bouge que
+    lorsque la liquidité passive de son niveau a été consommée.
+  </p>
+  <p>
+    Cela permet une chose rare&nbsp;: <strong>savoir où sont les vraies
+    absorptions</strong>. Chacune est posée sciemment dans les données, puis on
+    mesure si la stratégie les retrouve — au lieu de supposer qu'elle le fait.
+  </p>
+</section>
+
+<section>
+  <p class="kicker">Le résultat qui compte</p>
+  <h2>Trois marchés, une seule différence</h2>
+  <p class="measure">
+    Le jeu <em>placebo</em> est généré exactement comme le premier — mêmes
+    tendances, mêmes LVN, même relief de liquidité — mais on lui a retiré la seule
+    chose que la stratégie prétend exploiter. Si la performance y survivait, l'edge
+    viendrait de la sortie à 2&nbsp;R, pas de la lecture du flux.
+  </p>
+
+  <div class="three">
+    <div class="card win">
+      <h4>structured</h4>
+      <p class="sub">Tendances, LVN, et absorptions réellement injectées.</p>
+      <div class="big pos">+0,41 R</div>
+      <div class="big-label">espérance par trade</div>
+      <dl>
+        <dt>Signaux / jour</dt><dd>1,80</dd>
+        <dt>Trades</dt><dd>520</dd>
+        <dt>Réussite</dt><dd>41,5 %</dd>
+        <dt>Facteur de profit</dt><dd>1,68</dd>
+        <dt>Net</dt><dd class="pos">+2 750 $</dd>
+      </dl>
+    </div>
+    <div class="card flat">
+      <h4>placebo</h4>
+      <p class="sub">Marché identique, <b>sans aucune absorption</b>.</p>
+      <div class="big nil">−0,33 R</div>
+      <div class="big-label">espérance par trade</div>
+      <dl>
+        <dt>Signaux / jour</dt><dd>0,06</dd>
+        <dt>Trades</dt><dd>20</dd>
+        <dt>Réussite</dt><dd>20,0 %</dd>
+        <dt>Facteur de profit</dt><dd>0,75</dd>
+        <dt>Net</dt><dd class="neg">−54 $</dd>
+      </dl>
+    </div>
+    <div class="card lose">
+      <h4>null</h4>
+      <p class="sub">Marche aléatoire, liquidité uniforme, aucune structure.</p>
+      <div class="big neg">−0,87 R</div>
+      <div class="big-label">espérance par trade</div>
+      <dl>
+        <dt>Signaux / jour</dt><dd>0,01</dd>
+        <dt>Trades</dt><dd>4</dd>
+        <dt>Réussite</dt><dd>0 %</dd>
+        <dt>Facteur de profit</dt><dd>0,00</dd>
+        <dt>Net</dt><dd class="neg">−35 $</dd>
+      </dl>
+    </div>
+  </div>
+
+  <p class="measure">
+    Retirer les absorptions divise le nombre de signaux par <strong>28</strong> et
+    fait passer l'espérance sous zéro. Le déclencheur n'est donc pas «&nbsp;une
+    grosse barre sur un LVN&nbsp;» — configuration que le placebo produit tout
+    autant — mais bien le phénomène visé.
+  </p>
+  <p class="measure">
+    Les six marchés simulés sont indépendants, et tous les six ressortent
+    positifs&nbsp;: de <strong>+0,20&nbsp;R à +0,73&nbsp;R</strong> d'espérance. Le
+    sens du résultat est stable&nbsp;; son amplitude, sur 85&nbsp;trades par tirage,
+    ne l'est pas — c'est l'incertitude à garder en tête derrière le chiffre global.
+  </p>
+</section>
+
+<section>
+  <p class="kicker">Contrôle de détection</p>
+  <h2>Ce que la stratégie voit réellement</h2>
+
+  <div class="ladder-wrap">
+    <div class="ladder" aria-label="Schéma d'une empreinte de barre en absorption">
+      <div class="hd">vendeur (bid)</div><div class="hd">prix</div><div class="hd">acheteur (ask)</div>
+      <div class="b">148</div><div class="px">5024,00</div><div class="a">210</div>
+      <div class="b">96</div><div class="px">5023,75</div><div class="a">174</div>
+      <div class="b">122</div><div class="px">5023,50</div><div class="a">158</div>
+      <div class="b">137</div><div class="px">5023,25</div><div class="a">141</div>
+      <div class="b">160</div><div class="px">5023,00</div><div class="a">129</div>
+      <div class="b">184</div><div class="px">5022,75</div><div class="a">118</div>
+      <div class="b">201</div><div class="px">5022,50</div><div class="a">104</div>
+      <div class="b hot">438</div><div class="px">5022,25</div><div class="a">96</div>
+      <div class="b hot">907</div><div class="px row-abs">5022,00</div><div class="a">121</div>
+    </div>
+    <div class="ladder-note">
+      <p><span class="tag">schéma · barre type</span></p>
+      <p>Sur le plus bas, <b>907 contrats vendus à l'agression</b> contre 121 à
+      l'achat — quatre à cinq fois ce que ce niveau encaisse d'ordinaire — et le
+      prix ne descend pas d'un tick de plus. La barre clôture dans son tiers haut.
+      Quelqu'un a acheté tout ce qui se présentait.</p>
+      <p>C'est cette configuration, et son contact avec un LVN ou un niveau
+      structurel, qui arme le signal. L'entrée n'a lieu qu'après une barre de
+      confirmation qui ne casse pas ce plus bas.</p>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <caption>Confrontation aux absorptions réellement présentes dans les données</caption>
+      <thead>
+        <tr><th>Mesure</th><th>Valeur</th><th>Lecture</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Trades dont le niveau absorbé est un vrai ordre passif</td>
+          <td>48,1 %</td>
+          <td style="text-align:left; white-space:normal">Taux de base&nbsp;: 0,5 % des barres</td>
+        </tr>
+        <tr>
+          <td>… et dont le retournement a effectivement suivi</td>
+          <td>33,0 %</td>
+          <td style="text-align:left; white-space:normal">62 % des absorptions se retournent dans ce marché</td>
+        </tr>
+        <tr>
+          <td>Rappel</td>
+          <td>22,4 %</td>
+          <td style="text-align:left; white-space:normal">Détecteur sélectif&nbsp;: il en laisse passer beaucoup</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="measure">
+    Près d'un trade sur deux se déclenche sur un niveau où un ordre passif a
+    réellement absorbé du volume, contre un taux de base de 0,5 %. Le reste tire
+    sur des anomalies de volume sans ordre passif derrière — c'est le coût
+    d'un détecteur qui ne voit que le footprint, sans connaître le carnet.
+  </p>
+</section>
+
+<section>
+  <p class="kicker">Détail</p>
+  <h2>Par configuration et par sortie</h2>
+  <div class="scroll">
+    <table>
+      <caption>Jeu <code>structured</code> — 360 séances, 1 contrat</caption>
+      <thead>
+        <tr><th>Configuration</th><th>n</th><th>Réussite</th><th>PF</th><th>Espérance</th><th>Net</th><th>DD max</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Pullback sur structure</td><td>108</td><td>47,2 %</td><td>2,23</td><td class="pos">+0,571 R</td><td class="pos">+945 $</td><td>166 $</td></tr>
+        <tr><td>Absorption sur LVN</td><td>320</td><td>40,9 %</td><td>1,64</td><td class="pos">+0,386 R</td><td class="pos">+1 551 $</td><td>193 $</td></tr>
+        <tr><td>LVN + structure (les deux)</td><td>92</td><td>37,0 %</td><td>1,31</td><td class="pos">+0,291 R</td><td class="pos">+255 $</td><td>209 $</td></tr>
+        <tr class="total"><td>Ensemble</td><td>520</td><td>41,5 %</td><td>1,68</td><td class="pos">+0,408 R</td><td class="pos">+2 750 $</td><td>233 $</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="measure">
+    Contre-intuitif&nbsp;: le cumul des deux contextes fait <em>moins</em> bien que
+    chacun séparément. Un niveau qui est à la fois LVN et structure a déjà été
+    travaillé&nbsp;; il se comporte moins comme un vide que comme une zone disputée.
+  </p>
+
+  <div class="scroll">
+    <table>
+      <caption>Répartition des sorties</caption>
+      <thead><tr><th>Sortie</th><th>Trades</th><th>Net</th></tr></thead>
+      <tbody>
+        <tr><td>Objectif 2 R atteint</td><td>207</td><td class="pos">+6 558 $</td></tr>
+        <tr><td>Stop</td><td>191</td><td class="neg">−3 873 $</td></tr>
+        <tr><td>Breakeven (après +1 R)</td><td>110</td><td class="neg">−136 $</td></tr>
+        <tr><td>Fin de séance</td><td>12</td><td class="pos">+201 $</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="measure">
+    Les 110 sorties à breakeven sont la vraie question de réglage&nbsp;: c'est un
+    cinquième des trades neutralisés à +1&nbsp;R. Le stop de protection paie la
+    tranquillité au prix de la queue de gains.
+  </p>
+</section>
+
+<section>
+  <p class="kicker">Calibrage</p>
+  <h2>Deux critères classiques qui ne marchent pas</h2>
+  <p class="measure">
+    Les seuils n'ont pas été choisis à l'œil&nbsp;: on a mesuré la distribution de
+    chaque critère sur les barres contenant une absorption avérée, contre toutes
+    les autres.
+  </p>
+  <div class="scroll">
+    <table>
+      <caption>Médianes mesurées — barres d'absorption vs reste du marché</caption>
+      <thead>
+        <tr><th>Critère</th><th>Absorption</th><th>Bruit</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Volume de la zone / médiane glissante</td><td>3,69</td><td>0,99</td><td style="text-align:left">très discriminant</td></tr>
+        <tr><td>Volume de la barre / médiane</td><td>1,86</td><td>1,00</td><td style="text-align:left">discriminant</td></tr>
+        <tr><td>Concentration sur l'extrême</td><td>1,52</td><td>0,87</td><td style="text-align:left">discriminant</td></tr>
+        <tr><td>Part du flux agressif piégé</td><td>0,53</td><td>0,47</td><td style="text-align:left" class="neg">faible</td></tr>
+        <tr><td>Delta de barre opposé</td><td>71 %</td><td>49 %</td><td style="text-align:left" class="neg">faible</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <h3>Le piège du dénominateur</h3>
+    <p>
+      Comparer le volume de l'extrême au volume moyen des niveaux de la même barre
+      ne détecte <em>rien</em>. Dans une barre Range, l'extrême est par construction
+      peu échangé — le prix n'y passe qu'une fois. Rapport médian mesuré&nbsp;:
+      <strong>0,78</strong>, maximum 2,3. La référence doit être la médiane
+      glissante des zones extrêmes des barres précédentes.
+    </p>
+  </div>
+  <div class="callout">
+    <h3>Exiger 55 % de flux piégé éliminait 65 % des vraies absorptions</h3>
+    <p>
+      Le seuil qui semble le plus évident — «&nbsp;il faut une nette domination
+      vendeuse au plus bas&nbsp;» — est celui qui coûte le plus cher. Ramené à 0,50,
+      et l'exigence d'un delta de barre opposé désactivée par défaut.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">Sensibilité</p>
+  <h2>Ce qui bouge quand on tourne les boutons</h2>
+  <div class="scroll">
+    <table>
+      <caption>Objectif, en multiple du risque</caption>
+      <thead><tr><th>Objectif</th><th>Trades</th><th>PF</th><th>Espérance</th><th class="barcell"></th></tr></thead>
+      <tbody>
+        <tr><td>1,0 R</td><td>533</td><td>1,34</td><td class="pos">+0,229 R</td><td class="barcell"><span class="bar" style="--w:36%"></span></td></tr>
+        <tr><td>1,5 R</td><td>525</td><td>1,57</td><td class="pos">+0,340 R</td><td class="barcell"><span class="bar" style="--w:53%"></span></td></tr>
+        <tr><td>2,0 R  ·  défaut</td><td>520</td><td>1,68</td><td class="pos">+0,408 R</td><td class="barcell"><span class="bar" style="--w:64%"></span></td></tr>
+        <tr><td>2,5 R</td><td>514</td><td>1,88</td><td class="pos">+0,512 R</td><td class="barcell"><span class="bar" style="--w:80%"></span></td></tr>
+        <tr><td>3,0 R</td><td>513</td><td>2,06</td><td class="pos">+0,605 R</td><td class="barcell"><span class="bar" style="--w:94%"></span></td></tr>
+        <tr><td>3,5 R</td><td>508</td><td>2,16</td><td class="pos">+0,642 R</td><td class="barcell"><span class="bar" style="--w:100%"></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="verdict">Croissance monotone — et <b>c'est un artefact du simulateur</b>, pas un conseil. La dérive qui suit une absorption y persiste par construction, ce qui favorise mécaniquement les objectifs lointains. C'est la première courbe à re-mesurer sur vos données.</p>
+  <div class="scroll">
+    <table>
+      <caption>Sélectivité de l'absorption — volume de la zone / médiane glissante</caption>
+      <thead><tr><th>Seuil</th><th>Trades</th><th>PF</th><th>Espérance</th><th class="barcell"></th></tr></thead>
+      <tbody>
+        <tr><td>1,5 ×</td><td>573</td><td>1,63</td><td class="pos">+0,388 R</td><td class="barcell"><span class="bar" style="--w:90%"></span></td></tr>
+        <tr><td>2,0 ×</td><td>558</td><td>1,60</td><td class="pos">+0,393 R</td><td class="barcell"><span class="bar" style="--w:91%"></span></td></tr>
+        <tr><td>2,5 ×  ·  défaut</td><td>520</td><td>1,68</td><td class="pos">+0,408 R</td><td class="barcell"><span class="bar" style="--w:95%"></span></td></tr>
+        <tr><td>3,0 ×</td><td>456</td><td>1,67</td><td class="pos">+0,390 R</td><td class="barcell"><span class="bar" style="--w:90%"></span></td></tr>
+        <tr><td>3,5 ×</td><td>393</td><td>1,70</td><td class="pos">+0,396 R</td><td class="barcell"><span class="bar" style="--w:92%"></span></td></tr>
+        <tr><td>4,0 ×</td><td>326</td><td>1,87</td><td class="pos">+0,431 R</td><td class="barcell"><span class="bar" style="--w:100%"></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="verdict">Le résultat est <b>plat sur toute la plage</b> : le facteur de profit reste entre 1,60 et 1,87 pendant que le nombre de trades passe de 573 à 326. Le réglage n'est pas posé sur une arête — il pilote la fréquence, pas la qualité.</p>
+  <div class="scroll">
+    <table>
+      <caption>Définition des LVN — volume maximal, en % du POC</caption>
+      <thead><tr><th>Seuil LVN</th><th>Trades</th><th>PF</th><th>Espérance</th><th class="barcell"></th></tr></thead>
+      <tbody>
+        <tr><td>0,15</td><td>418</td><td>1,62</td><td class="pos">+0,365 R</td><td class="barcell"><span class="bar" style="--w:81%"></span></td></tr>
+        <tr><td>0,20</td><td>461</td><td>1,63</td><td class="pos">+0,369 R</td><td class="barcell"><span class="bar" style="--w:82%"></span></td></tr>
+        <tr><td>0,25</td><td>498</td><td>1,64</td><td class="pos">+0,380 R</td><td class="barcell"><span class="bar" style="--w:84%"></span></td></tr>
+        <tr><td>0,30  ·  défaut</td><td>520</td><td>1,68</td><td class="pos">+0,408 R</td><td class="barcell"><span class="bar" style="--w:91%"></span></td></tr>
+        <tr><td>0,35</td><td>540</td><td>1,78</td><td class="pos">+0,438 R</td><td class="barcell"><span class="bar" style="--w:97%"></span></td></tr>
+        <tr><td>0,40</td><td>554</td><td>1,81</td><td class="pos">+0,450 R</td><td class="barcell"><span class="bar" style="--w:100%"></span></td></tr>
+        <tr><td>0,45</td><td>563</td><td>1,77</td><td class="pos">+0,438 R</td><td class="barcell"><span class="bar" style="--w:97%"></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="verdict">Contre-intuitif : <b>exiger des LVN plus creux dégrade le résultat</b>. Le journal des trades dit la même chose par un autre chemin — l'espérance tombe de +0,43 R sur un LVN modéré à +0,18 R sur un niveau quasi vierge. Un vide total, le prix le traverse ; c'est le vide relatif, encore disputé, qui retient.</p>
+</section>
+
+<section>
+  <p class="kicker">Honnêteté</p>
+  <h2>Ce que ce backtest ne prouve pas</h2>
+  <div class="measure">
+    <p>Il établit que la logique est implémentable, déterministe, sans lecture du
+    futur (un test rejoue 60 % des barres et exige des trades identiques), et que
+    ce qu'elle exploite est bien l'absorption.</p>
+    <p>Il n'établit <strong>rien</strong> sur la rentabilité future&nbsp;:</p>
+    <ul>
+      <li>la performance du jeu <code>structured</code> dépend directement de la
+      fréquence des absorptions injectées et de leur probabilité de retournement
+      (62 %, un paramètre choisi). Ce n'est pas une prévision&nbsp;;</li>
+      <li>les seuils sont optimaux <em>sur ce simulateur</em>, pas sur le MES&nbsp;;</li>
+      <li>le modèle ignore le spread variable, les files d'attente réelles, le
+      spoofing, les annonces macro et les gaps de séance&nbsp;;</li>
+      <li>les déséquilibres diagonaux empilés ne sont pas reproduits fidèlement par
+      le simulateur&nbsp;: ce filtre reste à évaluer sur données réelles.</li>
+    </ul>
+    <p>La marche à suivre est donc&nbsp;: valider la logique ici, puis lancer la
+    stratégie NinjaTrader sur vos propres données tick, et comparer le nombre de
+    signaux par jour (~1,5) — un écart d'un ordre de grandeur trahit une erreur de
+    configuration, le plus souvent Tick&nbsp;Replay non activé.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Moteur Python sans dépendance (bibliothèque standard), 20 tests dont un test
+  anti look-ahead · Stratégie et indicateur NinjaScript fournis · Méthodologie
+  complète dans <code>docs/METHODOLOGIE.md</code>.</p>
+</footer>
+</div>

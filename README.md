@@ -55,18 +55,30 @@ aller-retour.
 
 | Jeu de données | Signaux/jour | Trades | Réussite | PF | Espérance |
 |---|---|---|---|---|---|
-| **structured** (avec absorptions) | 1,86 | 529 | 41,2 % | **1,68** | **+0,40 R** |
-| **placebo** (mêmes LVN, mêmes tendances, sans absorption) | 0,067 | 21 | 23,8 % | 0,99 | −0,22 R |
+| **structured** (avec absorptions) | 1,80 | 520 | 41,5 % | **1,68** | **+0,41 R** |
+| **placebo** (mêmes LVN, mêmes tendances, sans absorption) | 0,064 | 20 | 20,0 % | 0,75 | −0,33 R |
 | **null** (marche aléatoire) | 0,011 | 4 | 0 % | 0,00 | −0,87 R |
 
 Le placebo est le résultat qui compte : sur un marché génératif **identique**
 auquel on a seulement retiré les absorptions, la stratégie ne trouve plus que
-28 fois moins de signaux et son espérance retombe à zéro. Ce qu'elle exploite
+28 fois moins de signaux et son espérance passe sous zéro. Ce qu'elle exploite
 est donc bien le phénomène visé, et non la structure de sortie à 2 R.
 
-Contrôle de détection contre la vérité terrain : **~50 %** des trades se
+Par configuration :
+
+| Setup | n | Réussite | PF | Espérance |
+|---|---|---|---|---|
+| Pullback sur structure | 108 | 47,2 % | 2,23 | +0,571 R |
+| Absorption sur LVN | 320 | 40,9 % | 1,64 | +0,386 R |
+| Les deux à la fois | 92 | 37,0 % | 1,31 | +0,291 R |
+
+Les six tirages indépendants sont tous positifs, entre +0,20 R et +0,73 R
+d'espérance : le sens du résultat est stable, son amplitude ne l'est pas.
+
+Contrôle de détection contre la vérité terrain : **48 %** des trades se
 déclenchent sur un niveau où un ordre passif a réellement absorbé du volume
-(taux de base : 0,5 % des barres).
+(taux de base : 0,5 % des barres), et 33 % sur une absorption effectivement
+suivie d'un retournement.
 
 > ⚠️ Ces chiffres mesurent la **qualité de la logique**, pas une performance
 > attendue sur le marché réel. La rentabilité du jeu `structured` dépend
@@ -84,8 +96,20 @@ déclenchent sur un niveau où un ordre passif a réellement absorbé du volume
   opposé, et exiger plus de 55 % de flux agressif piégé. Ce dernier seuil
   éliminait 65 % des vraies absorptions ; il est ramené à 0,50.
 * Les barres Range rendent la simulation d'exécution nettement plus fiable que
-  les barres temps : sur 529 trades, stop et objectif n'ont été touchés dans la
+  les barres temps : sur 520 trades, stop et objectif n'ont été touchés dans la
   même barre qu'**une seule fois**.
+* **Les LVN les plus creux sont les moins bons.** L'espérance décroît avec la
+  virginité du niveau : +0,57 R sans LVN (pullback pur), +0,43 R sur un LVN
+  modéré, +0,18 R sur un niveau quasi vierge. Le balayage du seuil de définition
+  des LVN va dans le même sens : 0,35–0,40 du POC fait mieux que 0,15. Un vide
+  total, le prix le traverse ; c'est le vide *relatif*, encore disputé, qui
+  retient.
+* Le résultat est **peu sensible au seuil d'absorption** : de 1,5× à 4,0× la
+  médiane glissante, le facteur de profit reste entre 1,60 et 1,87 pendant que
+  le nombre de trades passe de 573 à 326. Ce n'est pas un réglage sur mesure.
+* Le balayage de l'objectif est monotone jusqu'à 3,5 R — mais c'est un
+  **artefact du simulateur** (la dérive post-absorption y persiste), à ne surtout
+  pas lire comme « viser 3,5 R sur le marché réel ».
 
 ## Passer sur vos données
 
