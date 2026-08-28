@@ -124,6 +124,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         private double lastAsk = double.MaxValue;
         private bool marketDataSeen;
         private bool tickReplayWarned;
+        private bool volumeWarned;
 
         private PendingSignal pendingConfirm;         // attend la barre de confirmation
         private PendingSignal pendingEntry;           // entrée à l'ouverture suivante
@@ -340,6 +341,67 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         private FpBar NewBar() { return new FpBar { HighT = int.MinValue, LowT = int.MaxValue }; }
 
+        /// <summary>
+        /// Recale le footprint sur les bornes réelles de la barre NinjaTrader.
+        ///
+        /// Avec Tick Replay, le tick qui fait dépasser le range est transmis à
+        /// OnMarketData AVANT que OnBarUpdate ne signale la clôture : il serait
+        /// donc compté dans la barre qui se termine alors qu'il appartient à la
+        /// suivante. On renvoie ici tout niveau situé hors du High/Low de la barre
+        /// close vers la barre en construction, puis on aligne open et close.
+        /// </summary>
+        private void Reconcile(FpBar bar)
+        {
+            int hiT = PriceToTicks(High[0]);
+            int loT = PriceToTicks(Low[0]);
+
+            List<int> outside = null;
+            foreach (int p in bar.Ladder.Keys)
+                if (p > hiT || p < loT)
+                {
+                    if (outside == null) outside = new List<int>();
+                    outside.Add(p);
+                }
+
+            if (outside != null)
+            {
+                foreach (int p in outside)
+                {
+                    long[] lvl = bar.Ladder[p];
+                    bar.Ladder.Remove(p);
+                    bar.Volume -= lvl[0] + lvl[1];
+                    if (lvl[0] > 0) current.Add(p, lvl[0], false);
+                    if (lvl[1] > 0) current.Add(p, lvl[1], true);
+                    if (p > current.HighT) current.HighT = p;
+                    if (p < current.LowT) current.LowT = p;
+                    current.CloseT = p;
+                }
+            }
+
+            if (bar.Ladder.Count == 0) { bar.Volume = 0; return; }
+
+            bar.HighT = int.MinValue; bar.LowT = int.MaxValue;
+            foreach (int p in bar.Ladder.Keys)
+            {
+                if (p > bar.HighT) bar.HighT = p;
+                if (p < bar.LowT) bar.LowT = p;
+            }
+            bar.OpenT = PriceToTicks(Open[0]);
+            bar.CloseT = Math.Min(bar.HighT, Math.Max(bar.LowT, PriceToTicks(Close[0])));
+
+            // Contrôle de cohérence : si le volume reconstruit s'écarte nettement
+            // du volume de la barre, c'est que le flux de ticks est incomplet.
+            if (!volumeWarned && Volume[0] > 0
+                && Math.Abs(bar.Volume - (long)Volume[0]) > 0.05 * Volume[0])
+            {
+                volumeWarned = true;
+                Print(string.Format(
+                    "FootprintAbsorption : volume reconstruit {0} contre {1} pour la barre "
+                    + "(écart > 5 %). Vérifiez Tick Replay et la qualité des données tick.",
+                    bar.Volume, (long)Volume[0]));
+            }
+        }
+
         private int PriceToTicks(double price) { return (int)Math.Round(price / TickSize); }
         private double TicksToPrice(int t) { return Instrument.MasterInstrument.RoundToTickSize(t * TickSize); }
 
@@ -365,6 +427,9 @@ namespace NinjaTrader.NinjaScript.Strategies
             // ----- clôture du footprint de la barre qui vient de se terminer -----
             FpBar bar = current;
             current = NewBar();
+            if (bar.Volume == 0)
+                return;
+            Reconcile(bar);
             if (bar.Volume == 0)
                 return;
             bar.Time = Time[0];

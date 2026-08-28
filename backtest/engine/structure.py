@@ -29,6 +29,7 @@ class Level:
     origin: str        # 'swing_low' | 'broken_high' | 'swing_high' | 'broken_low'
     created_at: int
     touches: int = 0
+    last_touch_bar: int = -10
     broken: bool = False
 
 
@@ -75,8 +76,20 @@ class StructureTracker:
         self._prune_levels(swing.confirmed_at)
 
     def _update_levels(self, bar: FootprintBar) -> None:
-        """Une résistance cassée par le haut devient un support (et inversement)."""
+        """Compte les tests du niveau, puis promeut les niveaux cassés.
+
+        Un niveau collé au prix serait « touché » à chaque barre : on ne compte
+        donc un nouveau test que si le prix s'en était éloigné entre-temps.
+        """
         idx = len(self.bars) - 1
+        tol = self.cfg.touch_tolerance_ticks
+        for lvl in self.levels:
+            if lvl.broken:
+                continue
+            if bar.low_t - tol <= lvl.price_t <= bar.high_t + tol:
+                if idx - lvl.last_touch_bar > 1:
+                    lvl.touches += 1
+                lvl.last_touch_bar = idx
         for lvl in self.levels:
             if lvl.broken:
                 continue

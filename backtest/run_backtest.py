@@ -59,6 +59,7 @@ def report(cfg: Config, mode: str, seeds: Sequence[int], days: int,
     det_prec: List[float] = []
     det_any: List[float] = []
     det_rec: List[float] = []
+    per_seed: List[tuple] = []
     ambiguous = 0
 
     print("=" * 96)
@@ -80,6 +81,7 @@ def report(cfg: Config, mode: str, seeds: Sequence[int], days: int,
         agg.signals_skipped_busy += res.signals_skipped_busy
         ambiguous += res.ambiguous_bars
         all_trades.extend(res.trades)
+        per_seed.append((f"tirage {seed}", res.trades))
         q = metrics.detection_quality(res.trades, events)
         if res.trades:
             det_prec.append(q.precision)
@@ -109,6 +111,9 @@ def report(cfg: Config, mode: str, seeds: Sequence[int], days: int,
           f"durée moyenne {st.avg_bars_held:.1f} barres")
     print(f"  Commissions payées : {st.commissions_usd:.2f} $ "
           f"({st.commissions_usd/abs(st.net_usd)*100 if st.net_usd else 0:.0f} % du net en valeur absolue)")
+
+    if len(per_seed) > 1:
+        print_stats_block("--- PAR TIRAGE INDÉPENDANT (stabilité) " + "-" * 57, per_seed, cfg)
 
     by_setup = metrics.group_by(all_trades, lambda t: t.setup)
     print_stats_block("--- PAR SETUP " + "-" * 81,

@@ -162,6 +162,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             FpBar bar = current;
             current = new FpBar();
             if (bar.Volume == 0) return;
+            Reconcile(bar);
+            if (bar.Volume == 0) return;
 
             if (hist.Count >= Math.Min(150, ProfileLookback) && zoneLow.Count >= 15)
             {
@@ -185,6 +187,33 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             ProfileAdd(bar);
             BaselineAdd(bar);
+        }
+
+        /// <summary>
+        /// Le tick qui fait dépasser le range est reçu par OnMarketData avant la
+        /// clôture de barre : on renvoie vers la barre suivante tout niveau hors
+        /// du High/Low réel, pour que le footprint colle exactement à la barre.
+        /// </summary>
+        private void Reconcile(FpBar bar)
+        {
+            int hiT = (int)Math.Round(High[0] / TickSize);
+            int loT = (int)Math.Round(Low[0] / TickSize);
+            var outside = bar.Ladder.Keys.Where(p => p > hiT || p < loT).ToList();
+            foreach (int p in outside)
+            {
+                long[] lvl = bar.Ladder[p];
+                bar.Ladder.Remove(p);
+                bar.Volume -= lvl[0] + lvl[1];
+                if (lvl[0] > 0) current.Add(p, lvl[0], false);
+                if (lvl[1] > 0) current.Add(p, lvl[1], true);
+                if (p > current.HighT) current.HighT = p;
+                if (p < current.LowT) current.LowT = p;
+                current.CloseT = p;
+            }
+            if (bar.Ladder.Count == 0) { bar.Volume = 0; return; }
+            bar.HighT = bar.Ladder.Keys.Max();
+            bar.LowT = bar.Ladder.Keys.Min();
+            bar.CloseT = Math.Min(bar.HighT, Math.Max(bar.LowT, (int)Math.Round(Close[0] / TickSize)));
         }
 
         private int Detect(FpBar bar)
